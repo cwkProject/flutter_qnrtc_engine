@@ -1,12 +1,11 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_qnrtc_engine/flutter_qnrtc_engine.dart';
 
 const _tag = 'rtc_example';
 
 const _token =
-    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:GTxrcoCvuoCvrLipPqRWQ8iSFJA=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwNTA0NTA2LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiIwOGMwNjUwNS1kZjJlLTRjMDctYjFlMy0yNzc3M2QxYzJjYmYifQ==';
+    // '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:ORYVfI8IxCD1_pAyDqdyYpy9gLI=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwNTI3NzMxLCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiI4ZDQ0OWQyOS03YzUwLTRhOTAtOWI4Mi03N2ZlY2JhMDIyYWUifQ==';
+     '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:-WPKr1YKHZO7vDlzdKrn5yZLKg4=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwNTI3NDUwLCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiIwOGMwNjUwNS1kZjJlLTRjMDctYjFlMy0yNzc3M2QxYzJjYmYifQ==';
 
 void main() {
   runApp(const MyApp());

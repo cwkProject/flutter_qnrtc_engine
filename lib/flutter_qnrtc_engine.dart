@@ -43,7 +43,7 @@ class FlutterQnrtcEngine {
 
   static Future<QNMicrophoneAudioTrack?> createMicrophoneAudioTrack(
       QNMicrophoneAudioTrackConfig config) async {
-    final result = await _channel.invokeMapMethod<String, dynamic>(
+    final result = await _channel.invokeMapMethod(
         'createMicrophoneAudioTrack', config.toMap());
 
     if (result == null) {
@@ -59,7 +59,7 @@ class FlutterQnrtcEngine {
 
   static Future<QNCameraVideoTrack?> createCameraVideoTrack(
       QNCameraVideoTrackConfig config) async {
-    final result = await _channel.invokeMapMethod<String, dynamic>(
+    final result = await _channel.invokeMapMethod(
         'createCameraVideoTrack', config.toMap());
 
     if (result == null) {
@@ -121,8 +121,7 @@ class FlutterQnrtcEngine {
   }
 
   static Future<Map<String, QNNetworkQuality>> getUserNetworkQuality() async {
-    final result = await _channel
-        .invokeMapMethod<String, Map<String, dynamic>>('getUserNetworkQuality');
+    final result = await _channel.invokeMapMethod('getUserNetworkQuality');
 
     if (result == null) {
       return const {};
@@ -414,20 +413,18 @@ class QNEventListener {
         onUserLeft?.call(arguments['remoteUserId']);
         break;
       case 'onUserPublished':
-        final List<Map<String, dynamic>> trackList = arguments['trackList'];
+        final List trackList = arguments['trackList'];
         onUserPublished?.call(arguments['remoteUserId'],
             trackList.map((e) => QNRemoteTrack.fromMap(e)).toList());
         break;
       case 'onUserUnpublished':
-        final List<Map<String, dynamic>> trackList = arguments['trackList'];
+        final List trackList = arguments['trackList'];
         onUserUnpublished?.call(arguments['remoteUserId'],
             trackList.map((e) => QNRemoteTrack.fromMap(e)).toList());
         break;
       case 'onSubscribed':
-        final List<Map<String, dynamic>> remoteAudioTracks =
-            arguments['remoteAudioTracks'];
-        final List<Map<String, dynamic>> remoteVideoTracks =
-            arguments['remoteVideoTracks'];
+        final List remoteAudioTracks = arguments['remoteAudioTracks'];
+        final List remoteVideoTracks = arguments['remoteVideoTracks'];
         onSubscribed?.call(
           arguments['remoteUserId'],
           remoteAudioTracks.map((e) => QNRemoteAudioTrack.fromMap(e)).toList(),
@@ -731,7 +728,7 @@ class QNNetworkQuality {
     this.downlinkNetworkGrade,
   );
 
-  factory QNNetworkQuality.fromMap(Map<String, dynamic> quality) =>
+  factory QNNetworkQuality.fromMap(Map<dynamic, dynamic> quality) =>
       QNNetworkQuality(
         QNNetworkGrade.values[quality['uplinkNetworkGrade']],
         QNNetworkGrade.values[quality['downlinkNetworkGrade']],
@@ -785,7 +782,7 @@ abstract class QNRemoteTrack extends QNTrack {
           kind: kind,
         );
 
-  factory QNRemoteTrack.fromMap(Map<String, dynamic> track) =>
+  factory QNRemoteTrack.fromMap(Map<dynamic, dynamic> track) =>
       track['kind'] == QNTrackKind.audio.index
           ? QNRemoteAudioTrack.fromMap(track)
           : QNRemoteVideoTrack.fromMap(track);
@@ -808,7 +805,7 @@ class QNRemoteVideoTrack extends QNRemoteTrack {
           kind: kind,
         );
 
-  factory QNRemoteVideoTrack.fromMap(Map<String, dynamic> track) =>
+  factory QNRemoteVideoTrack.fromMap(Map<dynamic, dynamic> track) =>
       QNRemoteVideoTrack(
         trackId: track['trackId'],
         tag: track['tag'],
@@ -834,7 +831,7 @@ class QNRemoteAudioTrack extends QNRemoteTrack {
           kind: kind,
         );
 
-  factory QNRemoteAudioTrack.fromMap(Map<String, dynamic> track) =>
+  factory QNRemoteAudioTrack.fromMap(Map<dynamic, dynamic> track) =>
       QNRemoteAudioTrack(
         trackId: track['trackId'],
         tag: track['tag'],
