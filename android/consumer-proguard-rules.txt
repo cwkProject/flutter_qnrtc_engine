@@ -1,0 +1,5 @@
+
+-keep class org.webrtc.** {*;}
+-dontwarn org.webrtc.**
+-keep class com.qiniu.droid.rtc.**{*;}
+-keep interface com.qiniu.droid.rtc.**{*;}
