@@ -616,7 +616,10 @@ class QNRTCSetting {
 
 /// QNRTCClient 创建配置类
 class QNRTCClientConfig {
-  QNRTCClientConfig({required this.mode, required this.role});
+  QNRTCClientConfig({
+    this.mode = QNClientMode.rtc,
+    this.role = QNClientRole.broadcaster,
+  });
 
   final QNClientMode mode;
 
