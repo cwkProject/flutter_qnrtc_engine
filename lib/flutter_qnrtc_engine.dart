@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -771,6 +772,18 @@ abstract class QNTrack {
   final QNTrackKind kind;
 
   Future<bool> get isMuted;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is QNTrack &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          tag == other.tag &&
+          kind == other.kind;
+
+  @override
+  int get hashCode => trackId.hashCode ^ tag.hashCode ^ kind.hashCode;
 }
 
 /// 音视频远端 Track 基类
@@ -988,10 +1001,11 @@ enum QNAudioMixerState {
 /// 渲染视图
 class QNRenderWidget extends StatefulWidget {
   QNRenderWidget({Key? key, required this.track})
-      : assert(track.kind == QNTrackKind.video),
+      : assert(track.value.kind == QNTrackKind.video),
         super(key: key);
 
-  final QNTrack track;
+  /// 绑定的视频track
+  final ValueListenable<QNTrack> track;
 
   @override
   State<StatefulWidget> createState() => QNRenderWidgetState();
@@ -1003,7 +1017,11 @@ class QNRenderWidgetState extends State<QNRenderWidget> {
 
   /// 绑定用户和原生控件
   void _bindView() {
-    final track = widget.track;
+    if (_viewId == null) {
+      return;
+    }
+
+    final track = widget.track.value;
     if (track is QNRemoteVideoTrack) {
       FlutterQnrtcEngine._remoteVideoPlay(track.trackId, _viewId);
     } else {
@@ -1012,7 +1030,9 @@ class QNRenderWidgetState extends State<QNRenderWidget> {
   }
 
   /// 解绑旧用户
-  void _unbindView(QNTrack track) {
+  void _unbindView(ValueListenable<QNTrack> old) {
+    old.removeListener(_bindView);
+    final track = old.value;
     if (track is QNRemoteVideoTrack) {
       FlutterQnrtcEngine._remoteVideoPlay(track.trackId, null);
     } else {
@@ -1029,19 +1049,26 @@ class QNRenderWidgetState extends State<QNRenderWidget> {
   }
 
   @override
-  void dispose() {
-    _unbindView(widget.track);
-    super.dispose();
+  void initState() {
+    super.initState();
+    widget.track.addListener(_bindView);
   }
 
   @override
   void didUpdateWidget(QNRenderWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (_viewId != null && oldWidget.track.trackId != widget.track.trackId) {
+    if (oldWidget.track != widget.track) {
       _unbindView(oldWidget.track);
       _bindView();
+      widget.track.addListener(_bindView);
     }
+  }
+
+  @override
+  void dispose() {
+    _unbindView(widget.track);
+    super.dispose();
   }
 
   @override

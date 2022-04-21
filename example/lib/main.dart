@@ -4,8 +4,8 @@ import 'package:flutter_qnrtc_engine/flutter_qnrtc_engine.dart';
 const _tag = 'rtc_example';
 
 const _token =
-    // '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:ORYVfI8IxCD1_pAyDqdyYpy9gLI=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwNTI3NzMxLCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiI4ZDQ0OWQyOS03YzUwLTRhOTAtOWI4Mi03N2ZlY2JhMDIyYWUifQ==';
-     '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:-WPKr1YKHZO7vDlzdKrn5yZLKg4=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwNTI3NDUwLCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiIwOGMwNjUwNS1kZjJlLTRjMDctYjFlMy0yNzc3M2QxYzJjYmYifQ==';
+// '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:ORYVfI8IxCD1_pAyDqdyYpy9gLI=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwNTI3NzMxLCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiI4ZDQ0OWQyOS03YzUwLTRhOTAtOWI4Mi03N2ZlY2JhMDIyYWUifQ==';
+    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:-WPKr1YKHZO7vDlzdKrn5yZLKg4=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwNTI3NDUwLCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiIwOGMwNjUwNS1kZjJlLTRjMDctYjFlMy0yNzc3M2QxYzJjYmYifQ==';
 
 void main() {
   runApp(const MyApp());
@@ -19,11 +19,11 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  QNCameraVideoTrack? _cameraVideoTrack;
+  ValueNotifier<QNCameraVideoTrack>? _cameraVideoTrack;
 
   QNMicrophoneAudioTrack? _microphoneAudioTrack;
 
-  final _remoteVideoTracks = <QNRemoteVideoTrack>[];
+  final _remoteVideoTracks = <ValueNotifier<QNRemoteVideoTrack>>[];
 
   bool _isBeauty = false;
 
@@ -35,7 +35,7 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
-    _cameraVideoTrack?.destroy();
+    _cameraVideoTrack?.value.destroy();
     _microphoneAudioTrack?.destroy();
     FlutterQnrtcEngine.leave();
     FlutterQnrtcEngine.deinit();
@@ -52,7 +52,7 @@ class _MyAppState extends State<MyApp> {
           if (state == QNConnectionState.connected) {
             try {
               await FlutterQnrtcEngine.publish(
-                  [_cameraVideoTrack!, _microphoneAudioTrack!]);
+                  [_cameraVideoTrack!.value, _microphoneAudioTrack!]);
               debugPrint('$_tag local published');
             } catch (e) {
               debugPrint('$e');
@@ -74,13 +74,14 @@ class _MyAppState extends State<MyApp> {
         onUserUnpublished: (remoteUserId, trackList) {
           debugPrint(
               '$_tag onUserUnpublished $remoteUserId ${trackList.map((e) => e.kind)}');
-          _remoteVideoTracks
-              .removeWhere((a) => trackList.any((b) => b.trackId == a.trackId));
+          _remoteVideoTracks.removeWhere(
+              (a) => trackList.any((b) => b.trackId == a.value.trackId));
         },
         onSubscribed: (remoteUserId, remoteAudioTracks, remoteVideoTracks) {
           debugPrint(
               '$_tag onSubscribed $remoteUserId ${remoteAudioTracks.length}, ${remoteVideoTracks.length}');
-          _remoteVideoTracks.addAll(remoteVideoTracks);
+          _remoteVideoTracks
+              .addAll(remoteVideoTracks.map((e) => ValueNotifier(e)));
         },
         onNetworkQualityNotified: (quality) {
           debugPrint('$_tag onNetworkQualityNotified ${[
@@ -93,7 +94,7 @@ class _MyAppState extends State<MyApp> {
 
     await FlutterQnrtcEngine.setAutoSubscribe(false);
 
-    _cameraVideoTrack = await FlutterQnrtcEngine.createCameraVideoTrack(
+    final vTrack = await FlutterQnrtcEngine.createCameraVideoTrack(
         QNCameraVideoTrackConfig(
       captureConfig: QNVideoCaptureConfig(
         width: 640,
@@ -107,6 +108,10 @@ class _MyAppState extends State<MyApp> {
         bitrate: 800,
       ),
     ));
+
+    if (vTrack != null) {
+      _cameraVideoTrack = ValueNotifier(vTrack);
+    }
 
     _microphoneAudioTrack = await FlutterQnrtcEngine.createMicrophoneAudioTrack(
       QNMicrophoneAudioTrackConfig(
@@ -138,7 +143,7 @@ class _MyAppState extends State<MyApp> {
             icon: const Icon(Icons.switch_camera_outlined),
             color: Colors.yellow,
             onPressed: () {
-              _cameraVideoTrack?.switchCamera();
+              _cameraVideoTrack?.value.switchCamera();
             },
           ),
         ),
@@ -148,7 +153,7 @@ class _MyAppState extends State<MyApp> {
             icon: const Icon(Icons.face_retouching_natural),
             color: _isBeauty ? Colors.green : Colors.grey,
             onPressed: () async {
-              await _cameraVideoTrack?.setBeauty(QNBeautySetting(
+              await _cameraVideoTrack?.value.setBeauty(QNBeautySetting(
                   enabled: !_isBeauty, smooth: 0.5, whiten: 0.5, redden: 0.5));
               setState(() {
                 _isBeauty = !_isBeauty;
@@ -172,7 +177,7 @@ class _MyAppState extends State<MyApp> {
           children: [
             if (_cameraVideoTrack != null) _localRender,
             for (final track in _remoteVideoTracks)
-              QNRenderWidget(key: ValueKey(track.trackId), track: track),
+              QNRenderWidget(key: ValueKey(track.value.trackId), track: track),
           ],
         ),
       ),
