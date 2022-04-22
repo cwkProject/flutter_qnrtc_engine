@@ -1016,27 +1016,29 @@ class QNRenderWidgetState extends State<QNRenderWidget> {
   int? _viewId;
 
   /// 绑定用户和原生控件
-  void _bindView() {
+  Future<void> _bindView() async {
     if (_viewId == null) {
       return;
     }
 
     final track = widget.track.value;
     if (track is QNRemoteVideoTrack) {
-      FlutterQnrtcEngine._remoteVideoPlay(track.trackId, _viewId);
+      await FlutterQnrtcEngine.subscribe([track]);
+      await FlutterQnrtcEngine._remoteVideoPlay(track.trackId, _viewId);
     } else {
-      FlutterQnrtcEngine._cameraPlay(track.tag, _viewId);
+      await FlutterQnrtcEngine._cameraPlay(track.tag, _viewId);
     }
   }
 
   /// 解绑旧用户
-  void _unbindView(ValueListenable<QNTrack> old) {
+  Future<void> _unbindView(ValueListenable<QNTrack> old) async {
     old.removeListener(_bindView);
     final track = old.value;
     if (track is QNRemoteVideoTrack) {
-      FlutterQnrtcEngine._remoteVideoPlay(track.trackId, null);
+      await FlutterQnrtcEngine._remoteVideoPlay(track.trackId, null);
+      await FlutterQnrtcEngine.unsubscribe([track]);
     } else {
-      FlutterQnrtcEngine._cameraPlay(track.tag, null);
+      await FlutterQnrtcEngine._cameraPlay(track.tag, null);
     }
   }
 
@@ -1059,8 +1061,7 @@ class QNRenderWidgetState extends State<QNRenderWidget> {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.track != widget.track) {
-      _unbindView(oldWidget.track);
-      _bindView();
+      _unbindView(oldWidget.track).then((_) => _bindView());
       widget.track.addListener(_bindView);
     }
   }
