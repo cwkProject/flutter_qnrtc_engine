@@ -171,7 +171,10 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
             "setLogFileEnabled" -> QNRTC.setLogFileEnabled(call.argument("enable")!!)
             "setAutoSubscribe" -> rtcClient?.setAutoSubscribe(call.argument("autoSubscribe")!!)
             "join" -> rtcClient?.join(call.argument("token"), call.argument("userData"))
-            "leave" -> rtcClient?.leave()
+            "leave" -> {
+                rtcClient?.leave()
+                remoteTracks.clear()
+            }
             "publish" -> {
                 rtcClient?.publish(
                     object : QNPublishResultCallback {
