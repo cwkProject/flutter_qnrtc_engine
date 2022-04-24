@@ -704,9 +704,9 @@ enum QNCameraFacing {
 class QNBeautySetting {
   QNBeautySetting({
     this.enabled = true,
-    required this.smooth,
-    required this.whiten,
-    required this.redden,
+    this.smooth = 0.5,
+    this.whiten = 0.5,
+    this.redden = 0.1,
   });
 
   final bool enabled;
