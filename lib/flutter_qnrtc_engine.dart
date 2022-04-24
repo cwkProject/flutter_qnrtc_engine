@@ -102,7 +102,7 @@ class FlutterQnrtcEngine {
       await _channel.invokeMethod(
           'publish', trackList.map((e) => e.tag).toList());
     } on PlatformException catch (e) {
-      throw 'track publish error ${e.code}';
+      throw 'track publish error ${e.code} , ${e.message}';
     }
   }
 
@@ -780,18 +780,6 @@ abstract class QNTrack {
   final QNTrackKind kind;
 
   Future<bool> get isMuted;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is QNTrack &&
-          runtimeType == other.runtimeType &&
-          trackId == other.trackId &&
-          tag == other.tag &&
-          kind == other.kind;
-
-  @override
-  int get hashCode => trackId.hashCode ^ tag.hashCode ^ kind.hashCode;
 }
 
 /// 音视频远端 Track 基类

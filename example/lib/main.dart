@@ -5,7 +5,7 @@ const _tag = 'rtc_example';
 
 const _token =
 // '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:ORYVfI8IxCD1_pAyDqdyYpy9gLI=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwNTI3NzMxLCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiI4ZDQ0OWQyOS03YzUwLTRhOTAtOWI4Mi03N2ZlY2JhMDIyYWUifQ==';
-    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:-WPKr1YKHZO7vDlzdKrn5yZLKg4=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwNTI3NDUwLCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiIwOGMwNjUwNS1kZjJlLTRjMDctYjFlMy0yNzc3M2QxYzJjYmYifQ==';
+    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:XBVZJB00qUpf26ObUuqtXR3DygU=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwODc3MjkyLCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiIzMDI0MWYzMi04YmUzLTRmYjktODA1NC1hNDIyNjUzN2RlNzYifQ==';
 
 void main() {
   runApp(const MyApp());
@@ -26,6 +26,8 @@ class _MyAppState extends State<MyApp> {
   final _remoteVideoTracks = <ValueNotifier<QNRemoteVideoTrack>>[];
 
   bool _isBeauty = false;
+
+  bool _isVideoLow = true;
 
   @override
   void initState() {
@@ -48,7 +50,7 @@ class _MyAppState extends State<MyApp> {
       QNRTCClientConfig(mode: QNClientMode.rtc, role: QNClientRole.broadcaster),
       QNEventListener(
         onConnectionStateChanged: (state, errorCode) async {
-          debugPrint('$_tag onConnectionStateChanged $state');
+          debugPrint('$_tag onConnectionStateChanged $state $errorCode');
           if (state == QNConnectionState.connected) {
             try {
               await FlutterQnrtcEngine.publish(
@@ -69,7 +71,14 @@ class _MyAppState extends State<MyApp> {
         onUserPublished: (remoteUserId, trackList) {
           debugPrint(
               '$_tag onUserPublished $remoteUserId ${trackList.map((e) => e.kind)}');
-          FlutterQnrtcEngine.subscribe(trackList);
+          for (final track in trackList) {
+            if (track.kind == QNTrackKind.audio) {
+              FlutterQnrtcEngine.subscribe([track]);
+            } else {
+              _remoteVideoTracks
+                  .add(ValueNotifier(track as QNRemoteVideoTrack));
+            }
+          }
         },
         onUserUnpublished: (remoteUserId, trackList) {
           debugPrint(
@@ -80,8 +89,6 @@ class _MyAppState extends State<MyApp> {
         onSubscribed: (remoteUserId, remoteAudioTracks, remoteVideoTracks) {
           debugPrint(
               '$_tag onSubscribed $remoteUserId ${remoteAudioTracks.length}, ${remoteVideoTracks.length}');
-          _remoteVideoTracks
-              .addAll(remoteVideoTracks.map((e) => ValueNotifier(e)));
         },
         onNetworkQualityNotified: (quality) {
           debugPrint('$_tag onNetworkQualityNotified ${[
@@ -94,20 +101,8 @@ class _MyAppState extends State<MyApp> {
 
     await FlutterQnrtcEngine.setAutoSubscribe(false);
 
-    final vTrack = await FlutterQnrtcEngine.createCameraVideoTrack(
-        QNCameraVideoTrackConfig(
-      captureConfig: QNVideoCaptureConfig(
-        width: 640,
-        height: 480,
-        frameRate: 30,
-      ),
-      encoderConfig: QNVideoEncoderConfig(
-        width: 640,
-        height: 480,
-        frameRate: 20,
-        bitrate: 800,
-      ),
-    ));
+    final vTrack =
+        await FlutterQnrtcEngine.createCameraVideoTrack(_createVideoConfig());
 
     if (vTrack != null) {
       _cameraVideoTrack = ValueNotifier(vTrack);
@@ -125,6 +120,59 @@ class _MyAppState extends State<MyApp> {
     );
 
     await FlutterQnrtcEngine.join(_token);
+    setState(() {});
+  }
+
+  QNCameraVideoTrackConfig _createVideoConfig() {
+    int width;
+    int height;
+    int frameRate;
+    int bitrate;
+
+    if (_isVideoLow) {
+      width = 320;
+      height = 240;
+      frameRate = 20;
+      bitrate = 300;
+    } else {
+      width = 640;
+      height = 480;
+      frameRate = 20;
+      bitrate = 800;
+    }
+
+    return QNCameraVideoTrackConfig(
+      captureConfig: QNVideoCaptureConfig(
+        width: width,
+        height: height,
+        frameRate: frameRate,
+      ),
+      encoderConfig: QNVideoEncoderConfig(
+        width: width,
+        height: height,
+        frameRate: frameRate,
+        bitrate: bitrate,
+      ),
+    );
+  }
+
+  Future<void> _switchClarity() async {
+    _isVideoLow = !_isVideoLow;
+
+    await FlutterQnrtcEngine.unpublish([_cameraVideoTrack!.value]);
+    await _cameraVideoTrack!.value.destroy();
+
+    final vTrack =
+        await FlutterQnrtcEngine.createCameraVideoTrack(_createVideoConfig());
+
+    if (vTrack == null) {
+      throw '_switchClarity failed';
+    }
+
+    await FlutterQnrtcEngine.publish([vTrack]);
+
+    _cameraVideoTrack?.value = vTrack;
+
     setState(() {});
   }
 
@@ -158,6 +206,16 @@ class _MyAppState extends State<MyApp> {
               setState(() {
                 _isBeauty = !_isBeauty;
               });
+            },
+          ),
+        ),
+        Align(
+          alignment: Alignment.topRight,
+          child: IconButton(
+            icon: const Icon(Icons.hd),
+            color: _isVideoLow ? Colors.grey : Colors.green,
+            onPressed: () {
+              _switchClarity();
             },
           ),
         ),
