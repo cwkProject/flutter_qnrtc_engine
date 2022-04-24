@@ -202,6 +202,18 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
                 result.success(it)
                 return
             }
+            "setClientRole" -> rtcClient?.setClientRole(QNClientRole.values()[call.argument("role")!!],
+                object : QNClientRoleResultCallback {
+                    override fun onResult(p0: QNClientRole?) {
+                        result.postSuccess()
+                    }
+
+                    override fun onError(p0: Int, p1: String?) {
+                        result.postError("$p0", p1)
+                    }
+                })?.also {
+                return
+            }
             "isLocalTrackMuted" -> {
                 result.success(localTracks[call.argument("tag")]?.isMuted)
                 return

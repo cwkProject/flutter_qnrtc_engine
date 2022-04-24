@@ -134,6 +134,14 @@ class FlutterQnrtcEngine {
         ));
   }
 
+  static Future<void> setClientRole(QNClientRole role) async {
+    try {
+      await _channel.invokeMethod('setClientRole', {'role': role.index});
+    } on PlatformException catch (e) {
+      throw 'setClientRole error ${e.code}';
+    }
+  }
+
   /// [QNLocalTrack.isMuted]
   static Future<bool> _isLocalTrackMuted(String tag) async {
     final bool? result =
