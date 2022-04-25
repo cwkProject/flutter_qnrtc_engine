@@ -782,6 +782,11 @@ abstract class QNTrack {
   final QNTrackKind kind;
 
   Future<bool> get isMuted;
+
+  @override
+  String toString() {
+    return '$runtimeType{trackId: $trackId, tag: $tag, kind: $kind}';
+  }
 }
 
 /// 音视频远端 Track 基类
