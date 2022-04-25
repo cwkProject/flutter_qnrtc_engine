@@ -337,6 +337,9 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
                 result.success(it.duration)
                 return
             }
+            "audioMixerEnableEarMonitor" -> audioMixers[call.argument("musicPath")]?.enableEarMonitor(
+                call.argument("enable")!!
+            )
         }
 
         result.success(null)

@@ -340,6 +340,15 @@ class FlutterQnrtcEngine {
         .invokeMethod('audioMixerGetDuration', {'musicPath': musicPath});
     return Duration(microseconds: result ?? 0);
   }
+
+  /// [QNAudioMixer.enableEarMonitor]
+  static Future<void> _audioMixerEnableEarMonitor(
+      String musicPath, bool enable) async {
+    await _channel.invokeMethod('audioMixerEnableEarMonitor', {
+      'musicPath': musicPath,
+      'enable': enable,
+    });
+  }
 }
 
 /// 七牛音视频事件回调集合
@@ -991,6 +1000,9 @@ class QNAudioMixer {
 
   Future<Duration> getDuration() =>
       FlutterQnrtcEngine._audioMixerGetDuration(musicPath);
+
+  Future<void> enableEarMonitor(bool enable) =>
+      FlutterQnrtcEngine._audioMixerEnableEarMonitor(musicPath, enable);
 }
 
 /// 混音操作相关的状态
