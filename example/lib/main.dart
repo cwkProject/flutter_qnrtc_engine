@@ -5,7 +5,7 @@ const _tag = 'rtc_example';
 
 const _token =
 // '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:ORYVfI8IxCD1_pAyDqdyYpy9gLI=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwNTI3NzMxLCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiI4ZDQ0OWQyOS03YzUwLTRhOTAtOWI4Mi03N2ZlY2JhMDIyYWUifQ==';
-    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:XBVZJB00qUpf26ObUuqtXR3DygU=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwODc3MjkyLCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiIzMDI0MWYzMi04YmUzLTRmYjktODA1NC1hNDIyNjUzN2RlNzYifQ==';
+    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:qmqvv_3rt3tSu6qxCuR50LPM6_A=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwOTQyNDU1LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiIzOTVjZWZjOS0xNzVmLTQ4ZjItOGExMC03M2VkZDMzOTcyZTYifQ==';
 
 void main() {
   runApp(const MyApp());
@@ -52,6 +52,7 @@ class _MyAppState extends State<MyApp> {
         onConnectionStateChanged: (state, errorCode) async {
           debugPrint('$_tag onConnectionStateChanged $state $errorCode');
           if (state == QNConnectionState.connected) {
+            await _createVideoTrack();
             try {
               await FlutterQnrtcEngine.publish(
                   [_cameraVideoTrack!.value, _microphoneAudioTrack!]);
@@ -101,13 +102,6 @@ class _MyAppState extends State<MyApp> {
 
     await FlutterQnrtcEngine.setAutoSubscribe(false);
 
-    final vTrack =
-        await FlutterQnrtcEngine.createCameraVideoTrack(_createVideoConfig());
-
-    if (vTrack != null) {
-      _cameraVideoTrack = ValueNotifier(vTrack);
-    }
-
     _microphoneAudioTrack = await FlutterQnrtcEngine.createMicrophoneAudioTrack(
       QNMicrophoneAudioTrackConfig(
         audioQuality: QNAudioQuality(
@@ -121,6 +115,15 @@ class _MyAppState extends State<MyApp> {
 
     await FlutterQnrtcEngine.join(_token);
     setState(() {});
+  }
+
+  Future<void> _createVideoTrack() async {
+    final vTrack =
+        await FlutterQnrtcEngine.createCameraVideoTrack(_createVideoConfig());
+
+    if (vTrack != null) {
+      _cameraVideoTrack = ValueNotifier(vTrack);
+    }
   }
 
   QNCameraVideoTrackConfig _createVideoConfig() {
