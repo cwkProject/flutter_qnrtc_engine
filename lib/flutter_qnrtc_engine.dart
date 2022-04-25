@@ -362,7 +362,8 @@ class QNEventListener {
     this.onAudioMixerError,
   });
 
-  final void Function(QNConnectionState state, int? errorCode)?
+  final void Function(
+          QNConnectionState state, int? errorCode, String? errorMessage)?
       onConnectionStateChanged;
 
   final void Function(String remoteUserId, String? userData)? onUserJoined;
@@ -407,7 +408,8 @@ class QNEventListener {
       case 'onConnectionStateChanged':
         onConnectionStateChanged?.call(
             QNConnectionState.values[arguments['state']],
-            arguments['errorCode']);
+            arguments['errorCode'],
+            arguments['errorMessage']);
         break;
       case 'onUserJoined':
         onUserJoined?.call(arguments['remoteUserId'], arguments['userData']);

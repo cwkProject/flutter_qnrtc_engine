@@ -382,6 +382,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
                 "onConnectionStateChanged", mapOf(
                     "state" to p0.ordinal,
                     "errorCode" to p1?.errorCode,
+                    "errorMessage" to p1?.errorMessage,
                 )
             )
         }
