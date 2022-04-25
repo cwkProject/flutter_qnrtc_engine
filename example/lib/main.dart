@@ -29,6 +29,8 @@ class _MyAppState extends State<MyApp> {
 
   bool _isVideoLow = true;
 
+  bool _isPublished = true;
+
   @override
   void initState() {
     super.initState();
@@ -179,6 +181,26 @@ class _MyAppState extends State<MyApp> {
     setState(() {});
   }
 
+  Future<void> _switchPublished() async {
+    if (_isPublished) {
+      await FlutterQnrtcEngine.unpublish([_cameraVideoTrack!.value]);
+      await _cameraVideoTrack!.value.destroy();
+    } else {
+      final vTrack =
+      await FlutterQnrtcEngine.createCameraVideoTrack(_createVideoConfig());
+
+      if (vTrack != null) {
+        _cameraVideoTrack!.value = vTrack;
+      }
+
+      await FlutterQnrtcEngine.publish([_cameraVideoTrack!.value]);
+    }
+
+    setState(() {
+      _isPublished = !_isPublished;
+    });
+  }
+
   Widget get _localRender {
     Widget result = QNRenderWidget(
       key: const ValueKey('localCamera'),
@@ -219,6 +241,18 @@ class _MyAppState extends State<MyApp> {
             color: _isVideoLow ? Colors.grey : Colors.green,
             onPressed: () {
               _switchClarity();
+            },
+          ),
+        ),
+        Align(
+          alignment: Alignment.topLeft,
+          child: IconButton(
+            icon: _isPublished
+                ? const Icon(Icons.videocam)
+                : const Icon(Icons.videocam_off),
+            color: !_isPublished ? Colors.blueGrey : Colors.green,
+            onPressed: () {
+              _switchPublished();
             },
           ),
         ),
