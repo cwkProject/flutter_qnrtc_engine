@@ -424,55 +424,59 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
         }
 
         override fun onUserPublished(p0: String, p1: List<QNRemoteTrack>) {
-            p1.forEach {
-                remoteTracks[it.trackID] = it
-                it.setTrackInfoChangedListener(object : QNTrackInfoChangedListener {
-                    override fun onVideoProfileChanged(profile: QNTrackProfile) {
-                        channel.postInvoke(
-                            "onVideoProfileChanged", mapOf(
-                                "trackId" to it.trackID,
-                                "profile" to profile.ordinal,
+            handler.post {
+                p1.forEach {
+                    remoteTracks[it.trackID] = it
+                    it.setTrackInfoChangedListener(object : QNTrackInfoChangedListener {
+                        override fun onVideoProfileChanged(profile: QNTrackProfile) {
+                            channel.postInvoke(
+                                "onVideoProfileChanged", mapOf(
+                                    "trackId" to it.trackID,
+                                    "profile" to profile.ordinal,
+                                )
                             )
-                        )
-                    }
+                        }
 
-                    override fun onMuteStateChanged(isMuted: Boolean) {
-                        channel.postInvoke(
-                            "onMuteStateChanged", mapOf(
-                                "trackId" to it.trackID,
-                                "isMuted" to isMuted,
+                        override fun onMuteStateChanged(isMuted: Boolean) {
+                            channel.postInvoke(
+                                "onMuteStateChanged", mapOf(
+                                    "trackId" to it.trackID,
+                                    "isMuted" to isMuted,
+                                )
                             )
-                        )
-                    }
-                })
-            }
-
-            channel.postInvoke("onUserPublished", mapOf(
-                "remoteUserId" to p0,
-                "trackList" to p1.map {
-                    mapOf(
-                        "trackId" to it.trackID,
-                        "tag" to it.tag,
-                        "kind" to if (it.isAudio) 0 else 1,
-                    )
+                        }
+                    })
                 }
-            ))
+
+                channel.invokeMethod("onUserPublished", mapOf(
+                    "remoteUserId" to p0,
+                    "trackList" to p1.map {
+                        mapOf(
+                            "trackId" to it.trackID,
+                            "tag" to it.tag,
+                            "kind" to if (it.isAudio) 0 else 1,
+                        )
+                    }
+                ))
+            }
         }
 
         override fun onUserUnpublished(p0: String, p1: List<QNRemoteTrack>) {
-            p1.forEach {
-                remoteTracks -= it.trackID
-            }
-            channel.postInvoke("onUserUnpublished", mapOf(
-                "remoteUserId" to p0,
-                "trackList" to p1.map {
-                    mapOf(
-                        "trackId" to it.trackID,
-                        "tag" to it.tag,
-                        "kind" to if (it.isAudio) 0 else 1,
-                    )
+            handler.post {
+                p1.forEach {
+                    remoteTracks -= it.trackID
                 }
-            ))
+                channel.invokeMethod("onUserUnpublished", mapOf(
+                    "remoteUserId" to p0,
+                    "trackList" to p1.map {
+                        mapOf(
+                            "trackId" to it.trackID,
+                            "tag" to it.tag,
+                            "kind" to if (it.isAudio) 0 else 1,
+                        )
+                    }
+                ))
+            }
         }
 
         override fun onSubscribed(
