@@ -197,12 +197,18 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
                     .takeIf { it.isNotEmpty() }?.also {
                         rtcClient?.subscribe(it)
                     }
+                result.success(null)
+            }.also {
+                return
             }
             "unsubscribe" -> handler.post {
                 call.arguments<List<String>>().mapNotNull { remoteTracks[it] }
                     .takeIf { it.isNotEmpty() }?.also {
                         rtcClient?.unsubscribe(it)
                     }
+                result.success(null)
+            }.also {
+                return
             }
             "getUserNetworkQuality" -> rtcClient?.userNetworkQuality?.mapValues {
                 mapOf(
