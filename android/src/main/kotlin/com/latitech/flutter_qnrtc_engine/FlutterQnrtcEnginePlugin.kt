@@ -192,10 +192,18 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
             }
             "unpublish" -> rtcClient?.unpublish(
                 call.arguments<List<String>>().mapNotNull { localTracks[it] })
-            "subscribe" -> rtcClient?.subscribe(
-                call.arguments<List<String>>().mapNotNull { remoteTracks[it] })
-            "unsubscribe" -> rtcClient?.unsubscribe(
-                call.arguments<List<String>>().mapNotNull { remoteTracks[it] })
+            "subscribe" -> handler.post {
+                call.arguments<List<String>>().mapNotNull { remoteTracks[it] }
+                    .takeIf { it.isNotEmpty() }?.also {
+                        rtcClient?.subscribe(it)
+                    }
+            }
+            "unsubscribe" -> handler.post {
+                call.arguments<List<String>>().mapNotNull { remoteTracks[it] }
+                    .takeIf { it.isNotEmpty() }?.also {
+                        rtcClient?.unsubscribe(it)
+                    }
+            }
             "getUserNetworkQuality" -> rtcClient?.userNetworkQuality?.mapValues {
                 mapOf(
                     "uplinkNetworkGrade" to it.value.uplinkNetworkGrade.ordinal,
