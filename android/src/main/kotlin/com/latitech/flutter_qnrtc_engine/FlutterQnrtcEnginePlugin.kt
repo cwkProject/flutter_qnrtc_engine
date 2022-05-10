@@ -465,6 +465,9 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
             handler.post {
                 p1.forEach {
                     remoteTracks -= it.trackID
+                    if (it.isVideo && it is QNRemoteVideoTrack) {
+                        it.play(null)
+                    }
                 }
                 channel.invokeMethod("onUserUnpublished", mapOf(
                     "remoteUserId" to p0,
