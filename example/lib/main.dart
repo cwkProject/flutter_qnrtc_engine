@@ -3,9 +3,13 @@ import 'package:flutter_qnrtc_engine/flutter_qnrtc_engine.dart';
 
 const _tag = 'rtc_example';
 
-const _token =
-// '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:ORYVfI8IxCD1_pAyDqdyYpy9gLI=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwNTI3NzMxLCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiI4ZDQ0OWQyOS03YzUwLTRhOTAtOWI4Mi03N2ZlY2JhMDIyYWUifQ==';
-    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:qmqvv_3rt3tSu6qxCuR50LPM6_A=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUwOTQyNDU1LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiMDY3YmI3OTBhNDA0NDA5MGJkYmFiYmVjMzYyODcyNzAiLCJ1c2VySWQiOiIzOTVjZWZjOS0xNzVmLTQ4ZjItOGExMC03M2VkZDMzOTcyZTYifQ==';
+const _token1 =
+    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:z-n3Hd23QRGSyYZ8aDjxSZ5gWJw=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUyMzQwMTA4LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiNGU2MzY1OGQzNTM0NGMyMjk2YjI5MDU2ZjVjMWZlODkiLCJ1c2VySWQiOiJlMDk4MmQyNy1iNTgwLTQ4N2QtYTYzNS0zZDY0MzA0OTRkYjQifQ==';
+
+const _token2 =
+    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:i5FPfUMlH4NuM0MFzLvvsgAnNpU=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUyMzQwMTc2LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiNGU2MzY1OGQzNTM0NGMyMjk2YjI5MDU2ZjVjMWZlODkiLCJ1c2VySWQiOiJhMzBlMWExMi02YTUwLTQ2N2UtYTdiYi04OWIwYjY2OTdkY2YifQ==';
+
+String get token => _token2;
 
 void main() {
   runApp(const MyApp());
@@ -51,8 +55,9 @@ class _MyAppState extends State<MyApp> {
       QNRTCSetting(),
       QNRTCClientConfig(mode: QNClientMode.rtc, role: QNClientRole.broadcaster),
       QNEventListener(
-        onConnectionStateChanged: (state, errorCode) async {
-          debugPrint('$_tag onConnectionStateChanged $state $errorCode');
+        onConnectionStateChanged: (state, errorCode, errorMessage) async {
+          debugPrint(
+              '$_tag onConnectionStateChanged $state $errorCode $errorMessage');
           if (state == QNConnectionState.connected) {
             await _createVideoTrack();
             try {
@@ -78,16 +83,20 @@ class _MyAppState extends State<MyApp> {
             if (track.kind == QNTrackKind.audio) {
               FlutterQnrtcEngine.subscribe([track]);
             } else {
-              _remoteVideoTracks
-                  .add(ValueNotifier(track as QNRemoteVideoTrack));
+              setState(() {
+                _remoteVideoTracks
+                    .add(ValueNotifier(track as QNRemoteVideoTrack));
+              });
             }
           }
         },
         onUserUnpublished: (remoteUserId, trackList) {
           debugPrint(
               '$_tag onUserUnpublished $remoteUserId ${trackList.map((e) => e.kind)}');
-          _remoteVideoTracks.removeWhere(
-              (a) => trackList.any((b) => b.trackId == a.value.trackId));
+          setState(() {
+            _remoteVideoTracks.removeWhere(
+                (a) => trackList.any((b) => b.trackId == a.value.trackId));
+          });
         },
         onSubscribed: (remoteUserId, remoteAudioTracks, remoteVideoTracks) {
           debugPrint(
@@ -115,7 +124,7 @@ class _MyAppState extends State<MyApp> {
       ),
     );
 
-    await FlutterQnrtcEngine.join(_token);
+    await FlutterQnrtcEngine.join(token);
     setState(() {});
   }
 
@@ -187,7 +196,7 @@ class _MyAppState extends State<MyApp> {
       await _cameraVideoTrack!.value.destroy();
     } else {
       final vTrack =
-      await FlutterQnrtcEngine.createCameraVideoTrack(_createVideoConfig());
+          await FlutterQnrtcEngine.createCameraVideoTrack(_createVideoConfig());
 
       if (vTrack != null) {
         _cameraVideoTrack!.value = vTrack;
