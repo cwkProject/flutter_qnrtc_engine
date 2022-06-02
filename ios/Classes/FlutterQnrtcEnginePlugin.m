@@ -9,12 +9,12 @@
 #endif
 @interface QnrtcRendererView()
 
-@property (nonatomic, assign) NSInteger viewId;
+@property (nonatomic, assign) int64_t viewId;
 
 @end
 @implementation QnrtcRendererView
 
-- (instancetype)initWithFrame:(CGRect)frame viewIdentifier:(NSInteger)viewId
+- (instancetype)initWithFrame:(CGRect)frame viewIdentifier:(int64_t)viewId
 {
     if (self = [super initWithFrame:frame])
     {
@@ -44,6 +44,44 @@
 }
 
 @end
+
+@interface QnrtcLocalRenderView()
+
+@property (nonatomic, assign) int64_t viewId;
+
+@end
+@implementation QnrtcLocalRenderView
+
+- (instancetype)initWithFrame:(CGRect)frame viewIdentifier:(int64_t)viewId
+{
+    if (self = [super initWithFrame:frame])
+    {
+        self.viewId = viewId;
+    }
+    return self;
+}
+
+- (nonnull UIView *)view
+{
+    return self;
+}
+
+@end
+@interface QnrtcLocalRendererViewFactory : NSObject<FlutterPlatformViewFactory>
+
+@end
+
+@implementation QnrtcLocalRendererViewFactory
+
+- (nonnull NSObject<FlutterPlatformView> *)createWithFrame:(CGRect)frame viewIdentifier:(int64_t)viewId arguments:(id _Nullable)args
+{
+    QnrtcLocalRenderView *rendererView = [[QnrtcLocalRenderView alloc] initWithFrame:frame viewIdentifier:viewId];
+    [FlutterQnrtcEnginePlugin addView:rendererView id:@(viewId)];
+    return rendererView;
+}
+
+@end
+
 @interface FlutterQnrtcEnginePlugin()<QNRTCClientDelegate,
 QNCameraTrackVideoDataDelegate,
 QNMicrophoneAudioTrackDataDelegate,
@@ -89,7 +127,9 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     [registrar addMethodCallDelegate:instance channel:channel];
     
     QnrtcRendererViewFactory * fac = [[QnrtcRendererViewFactory alloc]init];
-    [registrar registerViewFactory:fac withId:@"QNCloudVideoView"];
+    QnrtcLocalRendererViewFactory *local_fac = [[QnrtcLocalRendererViewFactory alloc] init];
+    [registrar registerViewFactory:fac withId:@"QNVideoView"];
+    [registrar registerViewFactory:local_fac withId:@"QNGLKView"];
 }
 - (NSMutableDictionary *)rendererViews
 {
@@ -99,7 +139,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     return _rendererViews;
 }
 
-+ (void)addView:(QnrtcRendererView *)view id:(NSNumber *)viewId
++ (void)addView:(UIView *)view id:(NSNumber *)viewId
 {
     if (!viewId) {
         return;
@@ -118,7 +158,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     [[[FlutterQnrtcEnginePlugin sharedQnrtcPluginlManager] rendererViews] removeObjectForKey:viewId];
 }
 
-+ (QnrtcRendererView *)viewForId:(NSNumber *)viewId {
++ (UIView *)viewForId:(NSNumber *)viewId {
     if (!viewId) {
         return nil;
     }
@@ -159,7 +199,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"createMicrophoneAudioTrack"])
     {
-        NSString *tag = [call.arguments[@"tag"] stringValue];
+        NSString *tag = call.arguments[@"tag"];
         int bitrate = [call.arguments[@"bitrate"] intValue];
         
         //not used by ios
@@ -175,13 +215,15 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         
         
         _audioTrack = [QNRTC createMicrophoneAudioTrackWithConfig:microphoneConfig];
+        [_localTracks setObject:_audioTrack forKey:tag];
         
-        result(@{@"trackId":_audioTrack.trackID,@"tag":tag,@"kind":@(0)});;
+        NSDictionary * dic = @{@"trackId":_audioTrack.trackID?_audioTrack:@"",@"tag":tag,@"kind":@(_audioTrack.kind)};;
+        result(dic);
         return;
     }
     if([call.method isEqualToString:@"createCameraVideoTrack"])
     {
-        NSString * tag = [call.arguments[@"tag"] stringValue];
+        NSString * tag = call.arguments[@"tag"];
         BOOL multiProfileEnabled = [call.arguments[@"multiProfileEnabled"] boolValue];
         int captureWidth = [call.arguments[@"encoderWidth"] intValue];
         int captureHeight = [call.arguments[@"encoderHeight"] intValue];
@@ -190,8 +232,9 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         
         
         _cameraTrack = [QNRTC createCameraVideoTrackWithConfig:[[QNCameraVideoTrackConfig alloc] initWithSourceTag:tag bitrate:bitrate videoEncodeSize:encodeSize multiStreamEnable:multiProfileEnabled]];
+        [_localTracks setObject:_cameraTrack forKey:tag];
         
-        result(@{@"trackId":_cameraTrack.trackID,@"tag":tag,@"kind":@(0)});
+        result(@{@"trackId":_cameraTrack.trackID?_cameraTrack.trackID:@"",@"tag":tag,@"kind":@(_cameraTrack.kind)});
         return;
     }
     if([call.method isEqualToString:@"setAudioRouteToSpeakerphone"])
@@ -214,7 +257,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"join"])
     {
-        [_client join:[call.arguments[@"token"] stringValue] userData:[call.arguments[@"userData"] stringValue]];
+        [_client join:call.arguments[@"token"] userData:call.arguments[@"userData"]];
         result(nil);
         return;
     }
@@ -229,7 +272,18 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     {
         NSArray * trackListString = call.arguments;
        
-        [_client publish:[_localTracks objectsForKeys:trackListString notFoundMarker:nil] completeCallback:^(BOOL onPublished, NSError *error) {
+        NSMutableArray<QNLocalTrack * > * trackList = [[NSMutableArray alloc] init];
+        
+        for(NSString * trackTag in trackListString)
+        {
+            QNLocalTrack * track = [_localTracks objectForKey:trackTag];
+            if(track)
+            {
+                [trackList addObject:track];
+            }
+        }
+        
+        [_client publish:trackList completeCallback:^(BOOL onPublished, NSError *error) {
                 //publish result
             if(error)
             {
@@ -243,8 +297,17 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     if([call.method isEqualToString:@"unpublish"])
     {
         NSArray * trackListString = call.arguments;
+        NSMutableArray<QNLocalTrack * > * trackList = [[NSMutableArray alloc] init];
         
-        [_client unpublish: [_localTracks objectsForKeys:trackListString notFoundMarker:nil]];
+        for(NSString * trackTag in trackListString)
+        {
+            QNLocalTrack * track = [_localTracks objectForKey:trackTag];
+            if(track)
+            {
+                [trackList addObject:track];
+            }
+        }
+        [_client unpublish: trackList];
         
         result(nil);
         return;
@@ -253,7 +316,18 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     {
         NSArray * trackListString = call.arguments;
         
-        [_client subscribe: [_remoteTracks objectsForKeys:trackListString notFoundMarker:nil]];
+        NSMutableArray<QNRemoteTrack *> * tracksList = [[NSMutableArray alloc] init];
+        for(NSString * name in trackListString)
+        {
+            QNRemoteTrack * track = [_remoteTracks objectForKey:name];
+            if(track)
+            {
+                [tracksList addObject:track];
+            }
+        }
+        
+        if(tracksList.count > 0)
+        [_client subscribe: tracksList];
         
         result(nil);
         return;
@@ -261,8 +335,16 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     if([call.method isEqualToString:@"unsubscribe"])
     {
         NSArray * trackListString = call.arguments;
-        
-        [_client unsubscribe: [_remoteTracks objectsForKeys:trackListString notFoundMarker:nil]];
+        NSMutableArray<QNRemoteTrack *> * trackList = [[NSMutableArray alloc] init];
+        for(NSString * trackId in trackListString)
+        {
+            QNRemoteTrack * track = [_remoteTracks objectForKey:trackId];
+            if(track)
+                [trackList addObject:track];
+            
+        }
+        if(trackList.count)
+            [_client unsubscribe: trackList];
         
         result(nil);
         return;
@@ -271,6 +353,14 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     {
         //tobefixed:
 //        [_client getUserNetworkQuality]
+        NSMutableDictionary<NSString *,NSDictionary<NSString *,NSNumber *> *> * qualityMap = [[NSMutableDictionary alloc] init];
+        for(QNRemoteUser * user in _client.remoteUserList)
+        {
+            QNNetworkQuality * quality = [_client getUserNetworkQuality:user.userID];
+            [qualityMap setObject:@{@"uplinkNetworkGrade":[NSNumber numberWithUnsignedInteger:quality.uplinkNetworkGrade],@"downlinkNetworkGrade":[NSNumber numberWithUnsignedInteger:quality.downlinkNetworkGrade]} forKey:user.userID];
+        }
+        
+        result(qualityMap);
         return;
     }
     if([call.method isEqualToString:@"setClientRole"])
@@ -283,10 +373,12 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
             }
             
         }];
+        result(nil);
+        return;
     }
     if([call.method isEqualToString:@"isLocalTrackMuted"])
     {
-        QNLocalTrack * track = [_localTracks objectForKey:[call.arguments[@"tag"] stringValue]];
+        QNLocalTrack * track = [_localTracks objectForKey:call.arguments[@"tag"]];
         if(track)
         {
             result(@(track.muted));
@@ -297,7 +389,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"setLocalTrackMuted"])
     {
-        QNLocalTrack * track = [_localTracks objectForKey:[call.arguments[@"tag"] stringValue]];
+        QNLocalTrack * track = [_localTracks objectForKey:call.arguments[@"tag"]];
         if(track)
         {
             [track updateMute:[call.arguments[@"muted"] boolValue]];
@@ -309,20 +401,20 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"localTrackDestroy"])
     {
-        QNLocalTrack * track = [_localTracks objectForKey:[call.arguments[@"tag"] stringValue]];
+        QNLocalTrack * track = [_localTracks objectForKey:call.arguments[@"tag"]];
         if(track.kind == QNTrackKindAudio)
         {
             _audioTrack = nil;
         }
         else
             _cameraTrack = nil;
-        [_localTracks removeObjectForKey:[call.arguments[@"tag"] stringValue]];
+        [_localTracks removeObjectForKey:call.arguments[@"tag"]];
         result(nil);
         return;
     }
     if([call.method isEqualToString:@"isRemoteTrackMuted"])
     {
-        QNRemoteTrack * track = [_remoteTracks objectForKey:[call.arguments[@"trackId"] stringValue]];
+        QNRemoteTrack * track = [_remoteTracks objectForKey:call.arguments[@"trackId"]];
         if(track)
         {
             result([NSNumber numberWithBool:track.muted]);
@@ -333,7 +425,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"isRemoteTrackSubscribed"])
     {
-        QNRemoteTrack * track = [_remoteTracks objectForKey:[call.arguments[@"trackId"] stringValue]];
+        QNRemoteTrack * track = [_remoteTracks objectForKey:call.arguments[@"trackId"]];
         if(track)
         {
             result([NSNumber numberWithBool:track.isSubscribed]);
@@ -344,21 +436,23 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"remoteVideoPlay"])
     {
-        QNRemoteTrack * track = [_remoteTracks objectForKey:[call.arguments[@"trackId"] stringValue]];
+        QNRemoteTrack * track = [_remoteTracks objectForKey:call.arguments[@"trackId"]];
         int viewId = [call.arguments[@"viewId"] intValue];
         if(track && [track isKindOfClass:[QNRemoteVideoTrack class]])
         {
             QNRemoteVideoTrack * videoTrack = (QNRemoteVideoTrack * )track;
-            [videoTrack play:[FlutterQnrtcEnginePlugin viewForId:[NSNumber numberWithInt:viewId]]];
+            QnrtcRendererView * view = (QnrtcRendererView *)([FlutterQnrtcEnginePlugin viewForId:@(viewId)]);
+            NSLog(@"bind to view %d",viewId);
+            [videoTrack play:view];
         }
-        
+
         result(nil);
         return;
         
     }
     if([call.method isEqualToString:@"setRemoteVideoProfile"])
     {
-        QNRemoteTrack * track = [_remoteTracks objectForKey:[call.arguments[@"trackId"] stringValue]];
+        QNRemoteTrack * track = [_remoteTracks objectForKey:call.arguments[@"trackId"]];
         if(track && [track isKindOfClass:[QNRemoteVideoTrack class]])
         {
             QNRemoteVideoTrack * videoTrack = (QNRemoteVideoTrack * )track;
@@ -370,7 +464,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"isMultiProfileEnabled"])
     {
-        QNRemoteTrack * track = [_remoteTracks objectForKey:[call.arguments[@"trackId"] stringValue]];
+        QNRemoteTrack * track = [_remoteTracks objectForKey:call.arguments[@"trackId"]];
         if(track && [track isKindOfClass:[QNRemoteVideoTrack class]])
         {
             QNRemoteVideoTrack * videoTrack = (QNRemoteVideoTrack * )track;
@@ -383,7 +477,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"getRemoteAudioVolume"])
     {
-        QNRemoteTrack * track = [_remoteTracks objectForKey:[call.arguments[@"trackId"] stringValue]];
+        QNRemoteTrack * track = [_remoteTracks objectForKey:call.arguments[@"trackId"]];
         if(track && [track isKindOfClass:[QNRemoteAudioTrack class]])
         {
             QNRemoteAudioTrack * audioTrack = (QNRemoteAudioTrack * )track;
@@ -394,24 +488,14 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
             result(nil);
         return;
     }
-    if([call.method isEqualToString:@"cameraPlay"])
-    {
-        QNRemoteTrack * track = [_remoteTracks objectForKey:[call.arguments[@"trackId"] stringValue]];
-        if(track && [track isKindOfClass:[QNRemoteAudioTrack class]])
-        {
-            QNRemoteAudioTrack * audioTrack = (QNRemoteAudioTrack * )track;
-           
-            [audioTrack setVolume:[call.arguments[@"volume"] floatValue]];
-        }
-        
-        result(nil);
-        return;
-    }
     
     if([call.method isEqualToString:@"cameraPlay"])
     {
         if(_cameraTrack)
-            [_cameraTrack play:[FlutterQnrtcEnginePlugin viewForId:[call.arguments[@"viewId"] numberValue]]];
+        {
+            QnrtcLocalRenderView * view = (QnrtcLocalRenderView *)([FlutterQnrtcEnginePlugin viewForId:@([call.arguments[@"viewId"] integerValue])]);
+            [_cameraTrack play:view];
+        }
         result(nil);
         return;
     }
@@ -518,7 +602,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"createAudioMixer"])
     {
-        NSString * musicPath = [call.arguments[@"musicPath"] stringValue];
+        NSString * musicPath = call.arguments[@"musicPath"];
         if(_audioTrack)
         {
             _audioTrack.audioMixer.delegate = self;
@@ -611,7 +695,8 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     NSString *str = [NSString stringWithFormat:@"房间状态变更的回调。当状态变为 QNRoomStateReconnecting 时，SDK 会为您自动重连，如果希望退出，直接调用 leaveRoom 即可:\nroomState: %@\ninfo:%lu",  roomStateDictionary[@(state)], (unsigned long)info.reason];
     
     NSLog(@"%@", str);
-    [_channel invokeMethod:@"onConnectionStateChanged" arguments:@{@"stage":@(state),@"errorCode:":@(info.error.code),@"errorMessage:":info.error.description}];
+    NSError * error = info?info.error:nil;
+    [_channel invokeMethod:@"onConnectionStateChanged" arguments:@{@"state":@(state),@"errorCode:":error?@(error.code):@(0),@"errorMessage:":error?error.description:@""}];
 #if 0
     if (QNConnectionStateConnected == state || QNConnectionStateReconnected == state) {
         //tobefixed:
@@ -724,6 +809,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     for(QNRemoteTrack * track in tracks)
     {
         [tracksArray addObject:@{@"trackId":track.trackID,@"tag":track.tag,@"kind":@(track.kind)}];
+        [_remoteTracks setObject:track forKey:track.trackID];
     }
     [_channel invokeMethod:@"onUserPublished" arguments:@{@"remoteUserId":userID,@"trackList":tracksArray}];
     
@@ -740,6 +826,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     for(QNRemoteTrack * track in tracks)
     {
         [tracksArray addObject:@{@"trackId":track.trackID,@"tag":track.tag,@"kind":@(track.kind)}];
+        [_remoteTracks removeObjectForKey:track.trackID];
     }
     [_channel invokeMethod:@"onUserUnpublished" arguments:@{@"remoteUserId":userID,@"trackList":tracksArray}];
     
@@ -759,6 +846,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
  */
 - (void)RTCClient:(QNRTCClient *)client firstVideoDidDecodeOfTrack:(QNRemoteVideoTrack *)videoTrack remoteUserID:(NSString *)userID {
     NSString *str = [NSString stringWithFormat:@"远端用户: %@ trackID: %@ 视频首帧解码后的回调",  userID, videoTrack.trackID];
+    
     //tobefixed:
 //    [self addLogString:str];
 }
@@ -806,10 +894,8 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     
     NSLog(@"%@",str);
     
-    [_channel invokeMethod:@"" arguments:@{}];
+    [_channel invokeMethod:@"onMuteStateChanged" arguments:@{@"trackId":remoteTrack.trackID,@"isMuted":@(remoteTrack.muted)}];
     
-    //tobefixed:
-//    [self addLogString:str];
 }
 
 
@@ -820,6 +906,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
  *
  * 注意：回调远端用户视频数据会带来一定的性能消耗，如果没有相关需求，请不要实现该回调
  */
+/*
 - (void)remoteVideoTrack:(QNRemoteVideoTrack *)remoteVideoTrack didGetPixelBuffer:(CVPixelBufferRef)pixelBuffer; {
     static int i = 0;
     if (i % 300 == 0) {
@@ -831,7 +918,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     i ++;
     
 }
-
+*/
 
 #pragma mark QNRemoteTrackAudioDataDelegate
 

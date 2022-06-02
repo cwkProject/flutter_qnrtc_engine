@@ -13,3 +13,6 @@
 @interface QnrtcRendererView : QNVideoView<FlutterPlatformView>
 
 @end
+@interface QnrtcLocalRenderView : QNGLKView<FlutterPlatformView>
+
+@end
