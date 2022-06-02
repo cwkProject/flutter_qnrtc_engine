@@ -1076,7 +1076,15 @@ class QNRenderWidgetState extends State<QNRenderWidget> {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.track != widget.track) {
-      _unbindView(oldWidget.track).then((_) => _bindView());
+      _unbindView(oldWidget.track).then((_) {
+        if (oldWidget.track.value is QNRemoteVideoTrack &&
+            widget.track.value is QNRemoteVideoTrack) {
+          _bindView();
+        } else if (oldWidget.track.value is! QNRemoteVideoTrack &&
+            widget.track.value is! QNRemoteVideoTrack) {
+          _bindView();
+        }
+      });
       widget.track.addListener(_bindView);
     }
   }
@@ -1090,7 +1098,9 @@ class QNRenderWidgetState extends State<QNRenderWidget> {
   @override
   Widget build(BuildContext context) => Platform.isIOS
       ? UiKitView(
-          viewType: 'QNGLKView',
+          viewType: widget.track.value is QNRemoteVideoTrack
+              ? 'QNVideoView'
+              : 'QNGLKView',
           onPlatformViewCreated: _onPlatformViewCreated,
         )
       : AndroidView(
