@@ -602,11 +602,14 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"createAudioMixer"])
     {
-        NSString * musicPath = call.arguments[@"musicPath"];
+        NSString * musicPath = [call.arguments[@"musicPath"] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+     
         if(_audioTrack)
         {
             _audioTrack.audioMixer.delegate = self;
-            _audioTrack.audioMixer.audioURL = [NSURL URLWithString:musicPath];
+            _audioTrack.audioMixer.rateInterval = 1.0f;
+            NSURL * url = [NSURL URLWithString:musicPath];
+            _audioTrack.audioMixer.audioURL = url;
          
         }
         result(nil);
@@ -621,15 +624,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         result(nil);
         return;
     }
-    if([call.method isEqualToString:@"audioMixerStop"])
-    {
-        if(_audioTrack)
-        {
-            [_audioTrack.audioMixer stop];
-        }
-        result(nil);
-        return;
-    }
+   
     if([call.method isEqualToString:@"audioMixerStop"])
     {
         if(_audioTrack)
@@ -661,7 +656,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     {
         if(_audioTrack)
         {
-            result([NSNumber numberWithDouble:_audioTrack.audioMixer.duration]);
+            result([NSNumber numberWithInt:(int)(_audioTrack.audioMixer.duration * 1000 * 1000)]);
             return;
         }
         result(nil);
@@ -980,17 +975,39 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
 //QNAudioMixer 在运行过程中，发生错误的回调
 -(void)audioMixer:(QNAudioMixer *)audioMixer didFailWithError:(NSError *)error
 {
-    
+    if(audioMixer && error && audioMixer.audioURL)
+        [_channel invokeMethod:@"onAudioMixerError" arguments:@{@"musicPath":audioMixer.audioURL.absoluteString.stringByRemovingPercentEncoding,@"errorCode":@(error.code)}];
 }
 //QNAudioMixer 在运行过程中，音频状态发生变化的回调
 -(void)audioMixer:(QNAudioMixer *)audioMixer playStateDidChange:(QNAudioPlayState)playState
 {
-    
+    int resultCode = -1;
+    switch(playState)
+    {
+        case QNAudioPlayStatePlaying:
+            resultCode = 0;
+            break;
+        case QNAudioPlayStatePaused:
+            resultCode = 1;
+            break;
+        case QNAudioPlayStateStoped:
+            resultCode = 2;
+            break;
+        case QNAudioPlayStateCompleted:
+            resultCode = 3;
+            break;
+        default:
+            break;
+            
+    }
+    if(resultCode >= 0)
+    [_channel invokeMethod:@"onAudioMixerStateChanged" arguments:@{@"musicPath":audioMixer.audioURL.absoluteString.stringByRemovingPercentEncoding,@"state":@(resultCode)}];
 }
 //QNAudioMixer 在运行过程中，混音进度的回调
 -(void)audioMixer:(QNAudioMixer *)audioMixer didMixing:(NSTimeInterval)currentTime
 {
-    
+    NSLog(@"current duration :%@",@(currentTime * 1000));
+    [_channel invokeMethod:@"onAudioMixerMixing" arguments:@{@"musicPath":audioMixer.audioURL.absoluteString.stringByRemovingPercentEncoding,@"current":@((int)(currentTime * 1000 * 1000))}];
 }
 
 @end
