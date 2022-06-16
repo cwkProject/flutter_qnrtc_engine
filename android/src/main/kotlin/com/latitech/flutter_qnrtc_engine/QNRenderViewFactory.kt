@@ -14,8 +14,8 @@ import io.flutter.plugin.platform.PlatformViewFactory
  */
 class QNRenderViewFactory(createArgsCodec: MessageCodec<Any>) :
     PlatformViewFactory(createArgsCodec) {
-    override fun create(context: Context, viewId: Int, args: Any?): PlatformView =
-        QNRenderPlatformView(QNTextureView(context.applicationContext), viewId)
+    override fun create(context: Context?, viewId: Int, args: Any?): PlatformView =
+        QNRenderPlatformView(QNTextureView(context?.applicationContext), viewId)
 }
 
 /**
