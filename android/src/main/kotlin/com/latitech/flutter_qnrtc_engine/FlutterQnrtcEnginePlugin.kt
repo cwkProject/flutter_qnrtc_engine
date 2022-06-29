@@ -2,6 +2,7 @@ package com.latitech.flutter_qnrtc_engine
 
 import android.content.Context
 import android.os.Handler
+import android.util.Log
 import androidx.annotation.NonNull
 import com.qiniu.droid.rtc.*
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -387,7 +388,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
             p0: QNConnectionState,
             p1: QNConnectionDisconnectedInfo?
         ) {
-            channel.postInvoke(
+            channel.invokeMethod(
                 "onConnectionStateChanged", mapOf(
                     "state" to p0.ordinal,
                     "errorCode" to p1?.errorCode,
@@ -397,7 +398,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
         }
 
         override fun onUserJoined(p0: String, p1: String?) {
-            channel.postInvoke(
+            channel.invokeMethod(
                 "onUserJoined", mapOf(
                     "remoteUserId" to p0,
                     "userData" to p1,
@@ -406,7 +407,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
         }
 
         override fun onUserReconnecting(p0: String) {
-            channel.postInvoke(
+            channel.invokeMethod(
                 "onUserReconnecting", mapOf(
                     "remoteUserId" to p0,
                 )
@@ -414,7 +415,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
         }
 
         override fun onUserReconnected(p0: String) {
-            channel.postInvoke(
+            channel.invokeMethod(
                 "onUserReconnected", mapOf(
                     "remoteUserId" to p0,
                 )
@@ -422,7 +423,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
         }
 
         override fun onUserLeft(p0: String) {
-            channel.postInvoke(
+            channel.invokeMethod(
                 "onUserLeft", mapOf(
                     "remoteUserId" to p0,
                 )
@@ -430,62 +431,55 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
         }
 
         override fun onUserPublished(p0: String, p1: List<QNRemoteTrack>) {
-            handler.post {
-                p1.forEach {
-                    remoteTracks[it.trackID] = it
-                    it.setTrackInfoChangedListener(object : QNTrackInfoChangedListener {
-                        override fun onVideoProfileChanged(profile: QNTrackProfile) {
-                            channel.postInvoke(
-                                "onVideoProfileChanged", mapOf(
-                                    "trackId" to it.trackID,
-                                    "profile" to profile.ordinal,
-                                )
+            p1.forEach {
+                remoteTracks[it.trackID] = it
+                it.setTrackInfoChangedListener(object : QNTrackInfoChangedListener {
+                    override fun onVideoProfileChanged(profile: QNTrackProfile) {
+                        channel.postInvoke(
+                            "onVideoProfileChanged", mapOf(
+                                "trackId" to it.trackID,
+                                "profile" to profile.ordinal,
                             )
-                        }
-
-                        override fun onMuteStateChanged(isMuted: Boolean) {
-                            channel.postInvoke(
-                                "onMuteStateChanged", mapOf(
-                                    "trackId" to it.trackID,
-                                    "isMuted" to isMuted,
-                                )
-                            )
-                        }
-                    })
-                }
-
-                channel.invokeMethod("onUserPublished", mapOf(
-                    "remoteUserId" to p0,
-                    "trackList" to p1.map {
-                        mapOf(
-                            "trackId" to it.trackID,
-                            "tag" to it.tag,
-                            "kind" to if (it.isAudio) 0 else 1,
                         )
                     }
-                ))
+
+                    override fun onMuteStateChanged(isMuted: Boolean) {
+                        channel.postInvoke(
+                            "onMuteStateChanged", mapOf(
+                                "trackId" to it.trackID,
+                                "isMuted" to isMuted,
+                            )
+                        )
+                    }
+                })
             }
+
+            channel.invokeMethod("onUserPublished", mapOf(
+                "remoteUserId" to p0,
+                "trackList" to p1.map {
+                    mapOf(
+                        "trackId" to it.trackID,
+                        "tag" to it.tag,
+                        "kind" to if (it.isAudio) 0 else 1,
+                    )
+                }
+            ))
         }
 
         override fun onUserUnpublished(p0: String, p1: List<QNRemoteTrack>) {
-            handler.post {
-                p1.forEach {
-                    remoteTracks -= it.trackID
-                    if (it.isVideo && it is QNRemoteVideoTrack) {
-                        it.play(null)
-                    }
-                }
-                channel.invokeMethod("onUserUnpublished", mapOf(
-                    "remoteUserId" to p0,
-                    "trackList" to p1.map {
-                        mapOf(
-                            "trackId" to it.trackID,
-                            "tag" to it.tag,
-                            "kind" to if (it.isAudio) 0 else 1,
-                        )
-                    }
-                ))
+            p1.forEach {
+                remoteTracks -= it.trackID
             }
+            channel.invokeMethod("onUserUnpublished", mapOf(
+                "remoteUserId" to p0,
+                "trackList" to p1.map {
+                    mapOf(
+                        "trackId" to it.trackID,
+                        "tag" to it.tag,
+                        "kind" to if (it.isAudio) 0 else 1,
+                    )
+                }
+            ))
         }
 
         override fun onSubscribed(
@@ -493,7 +487,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
             p1: List<QNRemoteAudioTrack>,
             p2: List<QNRemoteVideoTrack>
         ) {
-            channel.postInvoke("onSubscribed", mapOf(
+            channel.invokeMethod("onSubscribed", mapOf(
                 "remoteUserId" to p0,
                 "remoteAudioTracks" to p1.map {
                     mapOf(

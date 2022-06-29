@@ -4,19 +4,61 @@ import 'package:flutter_qnrtc_engine/flutter_qnrtc_engine.dart';
 const _tag = 'rtc_example';
 
 const _token1 =
-    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:z-n3Hd23QRGSyYZ8aDjxSZ5gWJw=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUyMzQwMTA4LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiNGU2MzY1OGQzNTM0NGMyMjk2YjI5MDU2ZjVjMWZlODkiLCJ1c2VySWQiOiJlMDk4MmQyNy1iNTgwLTQ4N2QtYTYzNS0zZDY0MzA0OTRkYjQifQ==';
+    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:bQz6mIfcdDsqUd9O3kn_DWWvm2c=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjU2NTYyNjY3LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiNGUxOTFhMjgwMjM2NGNjZGEzMjVjZmY5YzU2NDlhNDMiLCJ1c2VySWQiOiIxNmIzMTU5Yy1kYWIzLTRhMDktOGNlMy1jYTUyYWY2MDBkMWMifQ==';
 
 const _token2 =
-    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:i5FPfUMlH4NuM0MFzLvvsgAnNpU=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjUyMzQwMTc2LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiNGU2MzY1OGQzNTM0NGMyMjk2YjI5MDU2ZjVjMWZlODkiLCJ1c2VySWQiOiJhMzBlMWExMi02YTUwLTQ2N2UtYTdiYi04OWIwYjY2OTdkY2YifQ==';
-
-String get token => _token2;
+    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:HdFwWcKhwCN4h4F88ovFE5C02U4=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjU2NTYyODA2LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiNGUxOTFhMjgwMjM2NGNjZGEzMjVjZmY5YzU2NDlhNDMiLCJ1c2VySWQiOiIxNzBhMmU1Zi04MTI2LTRkNDYtOWRlNy02NmMwZmI1ZThjYzkifQ==';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const MainApp());
+}
+
+class MainApp extends StatelessWidget {
+  const MainApp({Key? key}) : super(key: key);
+
+  void _jumpTo(BuildContext context, String token) {
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => MyApp(
+                  token: token,
+                )));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(title: const Text('七牛插件示例')),
+        body: Center(
+          child: Builder(
+            builder: (context) => Column(
+              children: [
+                ElevatedButton(
+                  child: Text('用户1'),
+                  onPressed: () {
+                    _jumpTo(context, _token1);
+                  },
+                ),
+                ElevatedButton(
+                  child: Text('用户2'),
+                  onPressed: () {
+                    _jumpTo(context, _token2);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({Key? key, required this.token}) : super(key: key);
+
+  final String token;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -124,7 +166,7 @@ class _MyAppState extends State<MyApp> {
       ),
     );
 
-    await FlutterQnrtcEngine.join(token);
+    await FlutterQnrtcEngine.join(widget.token);
     setState(() {});
   }
 
@@ -169,6 +211,8 @@ class _MyAppState extends State<MyApp> {
       ),
     );
   }
+
+  Future<void> _switchFuture = Future.value();
 
   Future<void> _switchClarity() async {
     _isVideoLow = !_isVideoLow;
@@ -249,7 +293,7 @@ class _MyAppState extends State<MyApp> {
             icon: const Icon(Icons.hd),
             color: _isVideoLow ? Colors.grey : Colors.green,
             onPressed: () {
-              _switchClarity();
+              _switchFuture = _switchFuture.then((value) => _switchClarity());
             },
           ),
         ),
@@ -273,17 +317,15 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('七牛插件示例')),
-        body: GridView.count(
-          crossAxisCount: 3,
-          children: [
-            if (_cameraVideoTrack != null) _localRender,
-            for (final track in _remoteVideoTracks)
-              QNRenderWidget(key: ValueKey(track.value.trackId), track: track),
-          ],
-        ),
+    return Scaffold(
+      appBar: AppBar(title: const Text('七牛插件示例')),
+      body: GridView.count(
+        crossAxisCount: 3,
+        children: [
+          if (_cameraVideoTrack != null) _localRender,
+          for (final track in _remoteVideoTracks)
+            QNRenderWidget(key: ValueKey(track.value.trackId), track: track),
+        ],
       ),
     );
   }
