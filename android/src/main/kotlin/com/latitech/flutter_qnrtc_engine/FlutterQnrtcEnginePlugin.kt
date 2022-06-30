@@ -60,7 +60,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
     /**
      * 混音器
      */
-    private var audioMixer: QNAudioMusicMixer? = null
+    private var audioMixer: QNAudioMixer? = null
 
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "flutter_qnrtc_engine")
@@ -302,16 +302,13 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
                 ).apply { setEnable(call.argument("enabled")!!) })
             "setMicrophoneVolume" -> microphone?.setVolume(call.argument("volume")!!)
             "createAudioMixer" -> call.argument<String>("musicPath")!!.also { musicPath ->
-                microphone?.createAudioMusicMixer(musicPath,
-                    object : QNAudioMusicMixerListener {
-                        override fun onStateChanged(p0: QNAudioMusicMixerState) {
-                            if (p0 == QNAudioMusicMixerState.IDLE) {
-                                return
-                            }
+                microphone?.createAudioMixer(musicPath,
+                    object : QNAudioMixerListener {
+                        override fun onStateChanged(p0: QNAudioMixerState) {
                             channel.postInvoke(
                                 "onAudioMixerStateChanged", mapOf(
                                     "musicPath" to musicPath,
-                                    "state" to p0.ordinal - 1,
+                                    "state" to p0.ordinal,
                                 )
                             )
                         }
@@ -325,7 +322,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
                             )
                         }
 
-                        override fun onError(p0: Int, p1: String?) {
+                        override fun onError(p0: Int) {
                             channel.postInvoke(
                                 "onAudioMixerError", mapOf(
                                     "musicPath" to musicPath,
@@ -342,7 +339,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
             "audioMixerResume" -> audioMixer?.resume()
             "audioMixerPause" -> audioMixer?.pause()
             "audioMixerGetDuration" -> {
-                result.success(RTCAudioMusicMixer.a(call.argument("musicPath")))
+                result.success(audioMixer?.duration)
                 return
             }
             "audioMixerEnableEarMonitor" -> microphone?.isEarMonitorEnabled =
