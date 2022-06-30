@@ -27,7 +27,6 @@
 {
     return self;
 }
-
 @end
 
 @interface QnrtcRendererViewFactory : NSObject<FlutterPlatformViewFactory>
@@ -65,6 +64,7 @@
 {
     return self;
 }
+
 
 @end
 @interface QnrtcLocalRendererViewFactory : NSObject<FlutterPlatformViewFactory>
@@ -130,6 +130,24 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     QnrtcLocalRendererViewFactory *local_fac = [[QnrtcLocalRendererViewFactory alloc] init];
     [registrar registerViewFactory:fac withId:@"QNVideoView"];
     [registrar registerViewFactory:local_fac withId:@"QNGLKView"];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:instance selector:@selector(onDeviceOrientationChanged) name:UIDeviceOrientationDidChangeNotification object:nil];
+}
+
+-(void)onDeviceOrientationChanged
+{
+    if(_cameraTrack)
+    {
+        switch(UIDevice.currentDevice.orientation)
+        {
+            case UIDeviceOrientationLandscapeLeft:
+                _cameraTrack.videoOrientation = AVCaptureVideoOrientationLandscapeRight;
+                break;
+            case UIDeviceOrientationLandscapeRight:
+                _cameraTrack.videoOrientation = AVCaptureVideoOrientationLandscapeLeft;
+                break;
+        }
+    }
 }
 - (NSMutableDictionary *)rendererViews
 {
@@ -232,6 +250,18 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         
         
         _cameraTrack = [QNRTC createCameraVideoTrackWithConfig:[[QNCameraVideoTrackConfig alloc] initWithSourceTag:tag bitrate:bitrate videoEncodeSize:encodeSize multiStreamEnable:multiProfileEnabled]];
+        switch(UIDevice.currentDevice.orientation)
+        {
+            case UIDeviceOrientationPortrait:
+            case UIDeviceOrientationLandscapeLeft:
+                _cameraTrack.videoOrientation = AVCaptureVideoOrientationLandscapeRight;
+                break;
+            case UIDeviceOrientationPortraitUpsideDown:
+            case UIDeviceOrientationLandscapeRight:
+                _cameraTrack.videoOrientation = AVCaptureVideoOrientationLandscapeLeft;
+                break;
+        }
+        
         [_localTracks setObject:_cameraTrack forKey:tag];
         
         result(@{@"trackId":_cameraTrack.trackID?_cameraTrack.trackID:@"",@"tag":tag,@"kind":@(_cameraTrack.kind)});
