@@ -2,9 +2,9 @@ package com.latitech.flutter_qnrtc_engine
 
 import android.content.Context
 import android.os.Handler
-import android.util.Log
 import androidx.annotation.NonNull
 import com.qiniu.droid.rtc.*
+import com.qiniu.droid.rtc.renderer.audio.RTCAudioMusicMixer
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -342,7 +342,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
             "audioMixerResume" -> audioMixer?.resume()
             "audioMixerPause" -> audioMixer?.pause()
             "audioMixerGetDuration" -> {
-                result.success(QNAudioMusicMixer.getDuration(call.argument("musicPath")))
+                result.success(RTCAudioMusicMixer.a(call.argument("musicPath")))
                 return
             }
             "audioMixerEnableEarMonitor" -> microphone?.isEarMonitorEnabled =
