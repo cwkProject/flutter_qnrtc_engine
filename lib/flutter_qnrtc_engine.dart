@@ -1050,7 +1050,6 @@ class QNRenderWidgetState extends State<QNRenderWidget> {
     old.removeListener(_bindView);
     final track = old.value;
     if (track is QNRemoteVideoTrack) {
-      await FlutterQnrtcEngine._remoteVideoPlay(track.trackId, null);
       await FlutterQnrtcEngine.unsubscribe([track]);
     } else {
       await FlutterQnrtcEngine._cameraPlay(track.tag, null);
