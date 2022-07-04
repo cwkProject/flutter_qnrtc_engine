@@ -4,10 +4,10 @@ import 'package:flutter_qnrtc_engine/flutter_qnrtc_engine.dart';
 const _tag = 'rtc_example';
 
 const _token1 =
-    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:Y2RwA08nTfLR7Mdkgllm-Qn6FWc=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjU2NjU3ODQ4LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiNGUxOTFhMjgwMjM2NGNjZGEzMjVjZmY5YzU2NDlhNDMiLCJ1c2VySWQiOiIxNzBhMmU1Zi04MTI2LTRkNDYtOWRlNy02NmMwZmI1ZThjYzkifQ==';
+    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:6_PUQ0kjHBn3znwMRVNBM3ZCop4=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjU2OTg5MjI5LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiNGUxOTFhMjgwMjM2NGNjZGEzMjVjZmY5YzU2NDlhNDMiLCJ1c2VySWQiOiIxNmIzMTU5Yy1kYWIzLTRhMDktOGNlMy1jYTUyYWY2MDBkMWMifQ==';
 
 const _token2 =
-    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:-r0kYOpoxpe1sAKitnu-rY-F3WE=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjU2NjU3Nzk5LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiNGUxOTFhMjgwMjM2NGNjZGEzMjVjZmY5YzU2NDlhNDMiLCJ1c2VySWQiOiIxNmIzMTU5Yy1kYWIzLTRhMDktOGNlMy1jYTUyYWY2MDBkMWMifQ==';
+    '9w2nFNB2AGF3oAuny042uIaSmP069RfBoCTd6aW-:TM-FuDbt2CbciSJDwG3QTDnQIsA=:eyJhcHBJZCI6ImdjNG5qNTIwbiIsImV4cGlyZUF0IjoxNjU2OTg5Mjg0LCJwZXJtaXNzaW9uIjoidXNlciIsInJvb21OYW1lIjoiNGUxOTFhMjgwMjM2NGNjZGEzMjVjZmY5YzU2NDlhNDMiLCJ1c2VySWQiOiIxNzBhMmU1Zi04MTI2LTRkNDYtOWRlNy02NmMwZmI1ZThjYzkifQ==';
 
 void main() {
   runApp(const MainApp());
@@ -93,8 +93,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _initRtc() async {
+    FlutterQnrtcEngine.setLogFileEnabled(true);
+
     await FlutterQnrtcEngine.init(
-      QNRTCSetting(),
+      QNRTCSetting(logLevel:QNLogLevel.info),
       QNRTCClientConfig(mode: QNClientMode.rtc, role: QNClientRole.broadcaster),
       QNEventListener(
         onConnectionStateChanged: (state, errorCode, errorMessage) async {

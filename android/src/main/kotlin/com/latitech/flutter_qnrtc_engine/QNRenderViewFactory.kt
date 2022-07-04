@@ -30,6 +30,7 @@ class QNRenderPlatformView(private val videoView: QNTextureView, private val vie
     override fun getView(): View = videoView
 
     override fun dispose() {
+        videoView.release()
         views -= viewId
     }
 
