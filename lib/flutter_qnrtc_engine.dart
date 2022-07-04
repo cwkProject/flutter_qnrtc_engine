@@ -1097,9 +1097,7 @@ class QNRenderWidgetState extends State<QNRenderWidget> {
   @override
   Widget build(BuildContext context) => Platform.isIOS
       ? UiKitView(
-          viewType: widget.track.value is QNRemoteVideoTrack
-              ? 'QNVideoView'
-              : 'QNGLKView',
+          viewType: 'QNVideoGLView',
           onPlatformViewCreated: _onPlatformViewCreated,
         )
       : AndroidView(
