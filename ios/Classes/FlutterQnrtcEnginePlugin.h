@@ -14,9 +14,7 @@
 
 @end
 
-@interface QnrtcRendererView : QNVideoView<FlutterPlatformView>
+@interface QnrtcRendererView : QNVideoGLView<FlutterPlatformView>
 
 @end
-@interface QnrtcLocalRenderView : QNGLKView<FlutterPlatformView>
 
-@end
