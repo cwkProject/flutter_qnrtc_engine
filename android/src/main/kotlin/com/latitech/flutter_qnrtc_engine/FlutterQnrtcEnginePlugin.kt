@@ -385,7 +385,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
             p0: QNConnectionState,
             p1: QNConnectionDisconnectedInfo?
         ) {
-            channel.invokeMethod(
+            channel.postInvoke(
                 "onConnectionStateChanged", mapOf(
                     "state" to p0.ordinal,
                     "errorCode" to p1?.errorCode,
@@ -395,7 +395,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
         }
 
         override fun onUserJoined(p0: String, p1: String?) {
-            channel.invokeMethod(
+            channel.postInvoke(
                 "onUserJoined", mapOf(
                     "remoteUserId" to p0,
                     "userData" to p1,
@@ -404,7 +404,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
         }
 
         override fun onUserReconnecting(p0: String) {
-            channel.invokeMethod(
+            channel.postInvoke(
                 "onUserReconnecting", mapOf(
                     "remoteUserId" to p0,
                 )
@@ -412,7 +412,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
         }
 
         override fun onUserReconnected(p0: String) {
-            channel.invokeMethod(
+            channel.postInvoke(
                 "onUserReconnected", mapOf(
                     "remoteUserId" to p0,
                 )
@@ -420,7 +420,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
         }
 
         override fun onUserLeft(p0: String) {
-            channel.invokeMethod(
+            channel.postInvoke(
                 "onUserLeft", mapOf(
                     "remoteUserId" to p0,
                 )
@@ -428,55 +428,59 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
         }
 
         override fun onUserPublished(p0: String, p1: List<QNRemoteTrack>) {
-            p1.forEach {
-                remoteTracks[it.trackID] = it
-                it.setTrackInfoChangedListener(object : QNTrackInfoChangedListener {
-                    override fun onVideoProfileChanged(profile: QNTrackProfile) {
-                        channel.postInvoke(
-                            "onVideoProfileChanged", mapOf(
-                                "trackId" to it.trackID,
-                                "profile" to profile.ordinal,
+            handler.post {
+                p1.forEach {
+                    remoteTracks[it.trackID] = it
+                    it.setTrackInfoChangedListener(object : QNTrackInfoChangedListener {
+                        override fun onVideoProfileChanged(profile: QNTrackProfile) {
+                            channel.postInvoke(
+                                "onVideoProfileChanged", mapOf(
+                                    "trackId" to it.trackID,
+                                    "profile" to profile.ordinal,
+                                )
                             )
-                        )
-                    }
+                        }
 
-                    override fun onMuteStateChanged(isMuted: Boolean) {
-                        channel.postInvoke(
-                            "onMuteStateChanged", mapOf(
-                                "trackId" to it.trackID,
-                                "isMuted" to isMuted,
+                        override fun onMuteStateChanged(isMuted: Boolean) {
+                            channel.postInvoke(
+                                "onMuteStateChanged", mapOf(
+                                    "trackId" to it.trackID,
+                                    "isMuted" to isMuted,
+                                )
                             )
-                        )
-                    }
-                })
-            }
-
-            channel.invokeMethod("onUserPublished", mapOf(
-                "remoteUserId" to p0,
-                "trackList" to p1.map {
-                    mapOf(
-                        "trackId" to it.trackID,
-                        "tag" to it.tag,
-                        "kind" to if (it.isAudio) 0 else 1,
-                    )
+                        }
+                    })
                 }
-            ))
+
+                channel.invokeMethod("onUserPublished", mapOf(
+                    "remoteUserId" to p0,
+                    "trackList" to p1.map {
+                        mapOf(
+                            "trackId" to it.trackID,
+                            "tag" to it.tag,
+                            "kind" to if (it.isAudio) 0 else 1,
+                        )
+                    }
+                ))
+            }
         }
 
         override fun onUserUnpublished(p0: String, p1: List<QNRemoteTrack>) {
-            p1.forEach {
-                remoteTracks -= it.trackID
-            }
-            channel.invokeMethod("onUserUnpublished", mapOf(
-                "remoteUserId" to p0,
-                "trackList" to p1.map {
-                    mapOf(
-                        "trackId" to it.trackID,
-                        "tag" to it.tag,
-                        "kind" to if (it.isAudio) 0 else 1,
-                    )
+            handler.post {
+                p1.forEach {
+                    remoteTracks -= it.trackID
                 }
-            ))
+                channel.invokeMethod("onUserUnpublished", mapOf(
+                    "remoteUserId" to p0,
+                    "trackList" to p1.map {
+                        mapOf(
+                            "trackId" to it.trackID,
+                            "tag" to it.tag,
+                            "kind" to if (it.isAudio) 0 else 1,
+                        )
+                    }
+                ))
+            }
         }
 
         override fun onSubscribed(
@@ -484,7 +488,7 @@ class FlutterQnrtcEnginePlugin : FlutterPlugin, MethodCallHandler {
             p1: List<QNRemoteAudioTrack>,
             p2: List<QNRemoteVideoTrack>
         ) {
-            channel.invokeMethod("onSubscribed", mapOf(
+            channel.postInvoke("onSubscribed", mapOf(
                 "remoteUserId" to p0,
                 "remoteAudioTracks" to p1.map {
                     mapOf(
