@@ -44,51 +44,15 @@
 
 @end
 
-@interface QnrtcLocalRenderView()
 
-@property (nonatomic, assign) int64_t viewId;
-
-@end
-@implementation QnrtcLocalRenderView
-
-- (instancetype)initWithFrame:(CGRect)frame viewIdentifier:(int64_t)viewId
-{
-    if (self = [super initWithFrame:frame])
-    {
-        self.viewId = viewId;
-    }
-    return self;
-}
-
-- (nonnull UIView *)view
-{
-    return self;
-}
-
-
-@end
-@interface QnrtcLocalRendererViewFactory : NSObject<FlutterPlatformViewFactory>
-
-@end
-
-@implementation QnrtcLocalRendererViewFactory
-
-- (nonnull NSObject<FlutterPlatformView> *)createWithFrame:(CGRect)frame viewIdentifier:(int64_t)viewId arguments:(id _Nullable)args
-{
-    QnrtcLocalRenderView *rendererView = [[QnrtcLocalRenderView alloc] initWithFrame:frame viewIdentifier:viewId];
-    [FlutterQnrtcEnginePlugin addView:rendererView id:@(viewId)];
-    return rendererView;
-}
-
-@end
-
-@interface FlutterQnrtcEnginePlugin()<QNRTCClientDelegate,
-QNCameraTrackVideoDataDelegate,
-QNMicrophoneAudioTrackDataDelegate,
-QNRemoteTrackAudioDataDelegate,
-QNRemoteTrackVideoDataDelegate,
-QNRemoteTrackDelegate,
-QNAudioMixerDelegate>
+@interface FlutterQnrtcEnginePlugin()<
+QNRTCClientDelegate,
+QNLocalVideoTrackDelegate,
+QNLocalAudioTrackDelegate,
+QNRemoteAudioTrackDelegate,
+QNRemoteVideoTrackDelegate,
+QNAudioMusicMixerDelegate
+>
 
 @property (strong, nonatomic) NSMutableDictionary<NSNumber*,QnrtcRendererView *> *rendererViews;
 
@@ -98,6 +62,8 @@ QNAudioMixerDelegate>
 @property (nonatomic, strong) QNScreenVideoTrack *screenTrack;
 @property (nonatomic, strong) QNCameraVideoTrack *cameraTrack;
 @property (nonatomic, strong) QNMicrophoneAudioTrack *audioTrack;
+@property (nonatomic, strong) QNAudioMusicMixer * audioMixer;
+@property (nonatomic, strong) NSString * musicPath;
 @property (nonatomic, strong) NSMutableDictionary<NSString *,QNRemoteTrack *> *remoteTracks;
 @property (nonatomic, strong) NSMutableDictionary<NSString *,QNLocalTrack *> *localTracks;
 
@@ -127,9 +93,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     [registrar addMethodCallDelegate:instance channel:channel];
     
     QnrtcRendererViewFactory * fac = [[QnrtcRendererViewFactory alloc]init];
-    QnrtcLocalRendererViewFactory *local_fac = [[QnrtcLocalRendererViewFactory alloc] init];
-    [registrar registerViewFactory:fac withId:@"QNVideoView"];
-    [registrar registerViewFactory:local_fac withId:@"QNGLKView"];
+    [registrar registerViewFactory:fac withId:@"QNVideoGLView"];
     
     [[NSNotificationCenter defaultCenter] addObserver:instance selector:@selector(onDeviceOrientationChanged) name:UIDeviceOrientationDidChangeNotification object:nil];
 }
@@ -205,7 +169,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         QNClientRole role = (QNClientRole)([call.arguments[@"role"] intValue]);
         QNClientMode mode = (QNClientMode)([call.arguments[@"mode"] intValue]);
         
-        [QNRTC configRTC:[QNRTCConfiguration defaultConfiguration]];
+        [QNRTC initRTC:[QNRTCConfiguration defaultConfiguration]];
         
         // 1.创建初始化 RTC 核心类 QNRTCClient
         self.client = [QNRTC createRTCClient:[[QNClientConfig defaultClientConfig] initWithMode:mode role:role]];
@@ -229,7 +193,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         int bitsPerSample = [call.arguments[@"bitsPerSample"] intValue];
         */
         
-        QNMicrophoneAudioTrackConfig * microphoneConfig = [[QNMicrophoneAudioTrackConfig alloc] initWithTag:tag bitrate:bitrate];
+        QNMicrophoneAudioTrackConfig * microphoneConfig = [[QNMicrophoneAudioTrackConfig alloc] initWithTag:tag audioQuality:[[QNAudioQuality alloc] initWithBitrate:bitrate]];
         
         
         _audioTrack = [QNRTC createMicrophoneAudioTrackWithConfig:microphoneConfig];
@@ -248,8 +212,8 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         int bitrate = [call.arguments[@"encoderBitrate"] intValue];
         CGSize encodeSize = {captureWidth,captureHeight};
         
-        
-        _cameraTrack = [QNRTC createCameraVideoTrackWithConfig:[[QNCameraVideoTrackConfig alloc] initWithSourceTag:tag bitrate:bitrate videoEncodeSize:encodeSize multiStreamEnable:multiProfileEnabled]];
+        QNVideoEncoderConfig * config = [[QNVideoEncoderConfig alloc] initWithBitrate:bitrate videoEncodeSize:encodeSize];
+        _cameraTrack = [QNRTC createCameraVideoTrackWithConfig:[[QNCameraVideoTrackConfig alloc] initWithSourceTag:tag config:config multiStreamEnable:multiProfileEnabled]];
         switch(UIDevice.currentDevice.orientation)
         {
             case UIDeviceOrientationPortrait:
@@ -381,15 +345,8 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"getUserNetworkQuality"])
     {
-        //tobefixed:
-//        [_client getUserNetworkQuality]
-        NSMutableDictionary<NSString *,NSDictionary<NSString *,NSNumber *> *> * qualityMap = [[NSMutableDictionary alloc] init];
-        for(QNRemoteUser * user in _client.remoteUserList)
-        {
-            QNNetworkQuality * quality = [_client getUserNetworkQuality:user.userID];
-            [qualityMap setObject:@{@"uplinkNetworkGrade":[NSNumber numberWithUnsignedInteger:quality.uplinkNetworkGrade],@"downlinkNetworkGrade":[NSNumber numberWithUnsignedInteger:quality.downlinkNetworkGrade]} forKey:user.userID];
-        }
-        
+        NSDictionary * qualityMap = [_client getUserNetworkQuality];
+                      
         result(qualityMap);
         return;
     }
@@ -523,7 +480,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     {
         if(_cameraTrack)
         {
-            QnrtcLocalRenderView * view = (QnrtcLocalRenderView *)([FlutterQnrtcEnginePlugin viewForId:@([call.arguments[@"viewId"] integerValue])]);
+            QnrtcRendererView * view = (QnrtcRendererView *)([FlutterQnrtcEnginePlugin viewForId:@([call.arguments[@"viewId"] integerValue])]);
             [_cameraTrack play:view];
         }
         result(nil);
@@ -612,7 +569,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         if(_cameraTrack)
         {
             [_cameraTrack setBeautifyModeOn:enabled];
-            [_cameraTrack setBeautify:smooth];
+            [_cameraTrack setSmoothLevel:smooth];
             [_cameraTrack setWhiten:whiten];
             [_cameraTrack setRedden:redden];
         }
@@ -632,15 +589,12 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"createAudioMixer"])
     {
-        NSString * musicPath = [call.arguments[@"musicPath"] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        _musicPath = call.arguments[@"musicPath"];
+        NSString * musicPath = [_musicPath stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
      
         if(_audioTrack)
         {
-            _audioTrack.audioMixer.delegate = self;
-            _audioTrack.audioMixer.rateInterval = 1.0f;
-            NSURL * url = [NSURL URLWithString:musicPath];
-            _audioTrack.audioMixer.audioURL = url;
-         
+            _audioMixer = [_audioTrack createAudioMusicMixer:musicPath musicMixerDelegate:self];
         }
         result(nil);
         return;
@@ -649,7 +603,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     {
         if(_audioTrack)
         {
-            [_audioTrack.audioMixer start];
+            [_audioMixer start];
         }
         result(nil);
         return;
@@ -659,7 +613,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     {
         if(_audioTrack)
         {
-            [_audioTrack.audioMixer stop];
+            [_audioMixer stop];
         }
         result(nil);
         return;
@@ -668,7 +622,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     {
         if(_audioTrack)
         {
-            [_audioTrack.audioMixer pause];
+            [_audioMixer pause];
         }
         result(nil);
         return;
@@ -677,7 +631,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     {
         if(_audioTrack)
         {
-            [_audioTrack.audioMixer resume];
+            [_audioMixer resume];
         }
         result(nil);
         return;
@@ -686,7 +640,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     {
         if(_audioTrack)
         {
-            result([NSNumber numberWithInt:(int)(_audioTrack.audioMixer.duration * 1000 * 1000)]);
+            result([NSNumber numberWithUnsignedLongLong:[_audioMixer getCurrentPosition]]);
             return;
         }
         result(nil);
@@ -711,7 +665,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
 - (void)RTCClient:(QNRTCClient *)client didConnectionStateChanged:(QNConnectionState)state disconnectedInfo:(QNConnectionDisconnectedInfo *)info {
     
     NSDictionary *roomStateDictionary =  @{
-                                           @(QNConnectionStateIdle) : @"Idle",
+                                           @(QNConnectionStateDisconnected) : @"Idle",
                                            @(QNConnectionStateConnecting) : @"Connecting",
                                            @(QNConnectionStateConnected): @"Connected",
                                            @(QNConnectionStateReconnecting) : @"Reconnecting",
@@ -1003,27 +957,27 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
 
 
 //QNAudioMixer 在运行过程中，发生错误的回调
--(void)audioMixer:(QNAudioMixer *)audioMixer didFailWithError:(NSError *)error
+-(void)audioMixer:(QNAudioMusicMixer *)audioMixer didFailWithError:(NSError *)error
 {
-    if(audioMixer && error && audioMixer.audioURL)
-        [_channel invokeMethod:@"onAudioMixerError" arguments:@{@"musicPath":audioMixer.audioURL.absoluteString.stringByRemovingPercentEncoding,@"errorCode":@(error.code)}];
+   
+        [_channel invokeMethod:@"onAudioMixerError" arguments:@{@"musicPath":_musicPath,@"errorCode":@(error.code)}];
 }
 //QNAudioMixer 在运行过程中，音频状态发生变化的回调
--(void)audioMixer:(QNAudioMixer *)audioMixer playStateDidChange:(QNAudioPlayState)playState
+- (void)audioMusicMixer:(QNAudioMusicMixer *)audioMusicMixer didStateChanged:(QNAudioMusicMixerState)musicMixerState
 {
     int resultCode = -1;
-    switch(playState)
+    switch(musicMixerState)
     {
-        case QNAudioPlayStatePlaying:
+        case QNAudioMusicMixerStateMixing:
             resultCode = 0;
             break;
-        case QNAudioPlayStatePaused:
+        case QNAudioMusicMixerStatePaused:
             resultCode = 1;
             break;
-        case QNAudioPlayStateStoped:
+        case QNAudioMusicMixerStateStopped:
             resultCode = 2;
             break;
-        case QNAudioPlayStateCompleted:
+        case QNAudioMusicMixerStateCompleted:
             resultCode = 3;
             break;
         default:
@@ -1031,13 +985,13 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
             
     }
     if(resultCode >= 0)
-    [_channel invokeMethod:@"onAudioMixerStateChanged" arguments:@{@"musicPath":audioMixer.audioURL.absoluteString.stringByRemovingPercentEncoding,@"state":@(resultCode)}];
+    [_channel invokeMethod:@"onAudioMixerStateChanged" arguments:@{@"musicPath":_musicPath,@"state":@(resultCode)}];
 }
 //QNAudioMixer 在运行过程中，混音进度的回调
--(void)audioMixer:(QNAudioMixer *)audioMixer didMixing:(NSTimeInterval)currentTime
+-(void)audioMixer:(QNAudioMusicMixer *)audioMixer didMixing:(NSTimeInterval)currentTime
 {
     NSLog(@"current duration :%@",@(currentTime * 1000));
-    [_channel invokeMethod:@"onAudioMixerMixing" arguments:@{@"musicPath":audioMixer.audioURL.absoluteString.stringByRemovingPercentEncoding,@"current":@((int)(currentTime * 1000 * 1000))}];
+    [_channel invokeMethod:@"onAudioMixerMixing" arguments:@{@"musicPath":_musicPath,@"current":@((int)(currentTime * 1000 * 1000))}];
 }
 
 @end
