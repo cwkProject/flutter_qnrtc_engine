@@ -27,6 +27,11 @@
 {
     return self;
 }
+-(void)removeFromSuperview
+{
+    NSLog(@"test13:remove from super view");
+    [FlutterQnrtcEnginePlugin removeViewForId:[NSNumber numberWithUnsignedLongLong: self.viewId]];
+}
 @end
 
 @interface QnrtcRendererViewFactory : NSObject<FlutterPlatformViewFactory>
@@ -41,6 +46,8 @@
     [FlutterQnrtcEnginePlugin addView:rendererView id:@(viewId)];
     return rendererView;
 }
+
+
 
 @end
 
@@ -120,6 +127,10 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     return _rendererViews;
 }
+-(void) removeSubView:(NSNumber * )viewId
+{
+    [_rendererViews removeObjectForKey:viewId];
+}
 
 + (void)addView:(UIView *)view id:(NSNumber *)viewId
 {
@@ -148,6 +159,8 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
 }
 -(void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result
 {
+    
+    NSLog(@"test13:flutter call:%@",call.method);
     if([call.method isEqualToString:@"init"])
     {
         _localTracks = [[NSMutableDictionary alloc] init];
@@ -199,7 +212,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         _audioTrack = [QNRTC createMicrophoneAudioTrackWithConfig:microphoneConfig];
         [_localTracks setObject:_audioTrack forKey:tag];
         
-        NSDictionary * dic = @{@"trackId":_audioTrack.trackID?_audioTrack:@"",@"tag":tag,@"kind":@(_audioTrack.kind)};;
+        NSDictionary * dic = @{@"trackId":_audioTrack.trackID?_audioTrack.trackID:@"",@"tag":tag,@"kind":@(_audioTrack.kind)};
         result(dic);
         return;
     }
@@ -214,6 +227,9 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         
         QNVideoEncoderConfig * config = [[QNVideoEncoderConfig alloc] initWithBitrate:bitrate videoEncodeSize:encodeSize];
         _cameraTrack = [QNRTC createCameraVideoTrackWithConfig:[[QNCameraVideoTrackConfig alloc] initWithSourceTag:tag config:config multiStreamEnable:multiProfileEnabled]];
+        _cameraTrack.delegate = self;
+        NSLog(@"test12:create track");
+        
         switch(UIDevice.currentDevice.orientation)
         {
             case UIDeviceOrientationPortrait:
@@ -239,7 +255,8 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"setLogFileEnabled"])
     {
-        //ios not implemented
+//        [QNRTC enableFileLogging];
+//        [QNRTC setLogLevel:QNRTCLogLevelVerbose];
         result(nil);
         return;
     }
@@ -251,7 +268,8 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     }
     if([call.method isEqualToString:@"join"])
     {
-        [_client join:call.arguments[@"token"] userData:call.arguments[@"userData"]];
+//        [_client join:call.arguments[@"token"] userData:call.arguments[@"userData"]];
+        [_client join:call.arguments[@"token"]];
         result(nil);
         return;
     }
@@ -281,7 +299,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
                 //publish result
             if(error)
             {
-                NSLog(@"failed to publish local stream:%@",error.description);
+                NSLog(@"test12:failed to publish local stream:%@",error.description);
             }
         }];
         
@@ -301,7 +319,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
                 [trackList addObject:track];
             }
         }
-        [_client unpublish: trackList];
+//        [_client unpublish: trackList];
         
         result(nil);
         return;
@@ -313,6 +331,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         NSMutableArray<QNRemoteTrack *> * tracksList = [[NSMutableArray alloc] init];
         for(NSString * name in trackListString)
         {
+            NSLog(@"subscribe :%@",name);
             QNRemoteTrack * track = [_remoteTracks objectForKey:name];
             if(track)
             {
@@ -332,9 +351,13 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         NSMutableArray<QNRemoteTrack *> * trackList = [[NSMutableArray alloc] init];
         for(NSString * trackId in trackListString)
         {
+            NSLog(@"unsubscribe :%@",trackId);
             QNRemoteTrack * track = [_remoteTracks objectForKey:trackId];
+            
             if(track)
+            {
                 [trackList addObject:track];
+            }
             
         }
         if(trackList.count)
@@ -391,11 +414,18 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         QNLocalTrack * track = [_localTracks objectForKey:call.arguments[@"tag"]];
         if(track.kind == QNTrackKindAudio)
         {
+            [_audioTrack destroy];
             _audioTrack = nil;
         }
         else
+        {
+            NSLog(@"test12:destroys track");
+//            [NSThread sleepForTimeInterval:5.f];
+            [_cameraTrack destroy];
             _cameraTrack = nil;
+        }
         [_localTracks removeObjectForKey:call.arguments[@"tag"]];
+    
         result(nil);
         return;
     }
@@ -424,13 +454,24 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     if([call.method isEqualToString:@"remoteVideoPlay"])
     {
         QNRemoteTrack * track = [_remoteTracks objectForKey:call.arguments[@"trackId"]];
-        int viewId = [call.arguments[@"viewId"] intValue];
+        NSLog(@"test13:remoteVideoPlay:%@",call.arguments);
+        
         if(track && [track isKindOfClass:[QNRemoteVideoTrack class]])
         {
+            
+            NSNumber * viewId = call.arguments[@"viewId"];
             QNRemoteVideoTrack * videoTrack = (QNRemoteVideoTrack * )track;
-            QnrtcRendererView * view = (QnrtcRendererView *)([FlutterQnrtcEnginePlugin viewForId:@(viewId)]);
-            NSLog(@"bind to view %d",viewId);
-            [videoTrack play:view];
+            if(viewId != nil)
+            {
+                QnrtcRendererView * view = (QnrtcRendererView *)([FlutterQnrtcEnginePlugin viewForId:viewId]);
+                NSLog(@"test13:bind to view %d",[viewId intValue]);
+                [videoTrack play:view];
+            }
+            else
+            {
+                NSLog(@"test13:unbind to view");
+                [videoTrack play:nil];
+            }
         }
 
         result(nil);
@@ -594,7 +635,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
      
         if(_audioTrack)
         {
-            _audioMixer = [_audioTrack createAudioMusicMixer:musicPath musicMixerDelegate:self];
+            _audioMixer = [_audioTrack createAudioMusicMixer:_musicPath musicMixerDelegate:self];
         }
         result(nil);
         return;
@@ -640,7 +681,8 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     {
         if(_audioTrack)
         {
-            result([NSNumber numberWithUnsignedLongLong:[_audioMixer getCurrentPosition]]);
+            int duration = (int)([QNAudioMusicMixer getDuration:call.arguments[@"musicPath"]]) * 1000;
+            result([NSNumber numberWithInt:duration]);
             return;
         }
         result(nil);
@@ -649,7 +691,8 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     
     if([call.method isEqualToString:@"audioMixerEnableEarMonitor"])
     {
-        //not implemented by ios
+
+        [_audioTrack setEarMonitorEnabled:[call.arguments[@"enable"] boolValue]];
         result(nil);
         return;
     }
@@ -957,7 +1000,7 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
 
 
 //QNAudioMixer 在运行过程中，发生错误的回调
--(void)audioMixer:(QNAudioMusicMixer *)audioMixer didFailWithError:(NSError *)error
+- (void)audioMusicMixer:(QNAudioMusicMixer *)audioMusicMixer didFailWithError:(NSError *)error
 {
    
         [_channel invokeMethod:@"onAudioMixerError" arguments:@{@"musicPath":_musicPath,@"errorCode":@(error.code)}];
@@ -988,10 +1031,10 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     [_channel invokeMethod:@"onAudioMixerStateChanged" arguments:@{@"musicPath":_musicPath,@"state":@(resultCode)}];
 }
 //QNAudioMixer 在运行过程中，混音进度的回调
--(void)audioMixer:(QNAudioMusicMixer *)audioMixer didMixing:(NSTimeInterval)currentTime
+- (void)audioMusicMixer:(QNAudioMusicMixer *)audioMusicMixer didMixing:(int64_t)currentPosition;
 {
-    NSLog(@"current duration :%@",@(currentTime * 1000));
-    [_channel invokeMethod:@"onAudioMixerMixing" arguments:@{@"musicPath":_musicPath,@"current":@((int)(currentTime * 1000 * 1000))}];
+    NSLog(@"current duration :%@",@(currentPosition));
+    [_channel invokeMethod:@"onAudioMixerMixing" arguments:@{@"musicPath":_musicPath,@"current":@((int)(currentPosition * 1000))}];
 }
 
 @end

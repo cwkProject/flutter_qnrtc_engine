@@ -8,6 +8,7 @@
 
 + (UIView *)viewForId:(NSNumber *)viewId;
 
+
 + (FlutterQnrtcEnginePlugin *)sharedQnrtcPluginlManager;
 
 -(void)onDeviceOrientationChanged;
