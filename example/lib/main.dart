@@ -18,11 +18,9 @@ class MainApp extends StatelessWidget {
 
   void _jumpTo(BuildContext context, String token) {
     Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (_) => MyApp(
-                  token: token,
-                )));
+      context,
+      MaterialPageRoute(builder: (_) => MyApp(token: token)),
+    );
   }
 
   @override
@@ -77,6 +75,9 @@ class _MyAppState extends State<MyApp> {
 
   bool _isPublished = true;
 
+  /// 是否订阅远端视频
+  bool _isSubscribe = true;
+
   @override
   void initState() {
     super.initState();
@@ -96,7 +97,7 @@ class _MyAppState extends State<MyApp> {
     FlutterQnrtcEngine.setLogFileEnabled(true);
 
     await FlutterQnrtcEngine.init(
-      QNRTCSetting(logLevel:QNLogLevel.info),
+      QNRTCSetting(logLevel: QNLogLevel.info),
       QNRTCClientConfig(mode: QNClientMode.rtc, role: QNClientRole.broadcaster),
       QNEventListener(
         onConnectionStateChanged: (state, errorCode, errorMessage) async {
@@ -317,6 +318,18 @@ class _MyAppState extends State<MyApp> {
     return result;
   }
 
+  /// 构建订阅切换按钮
+  Widget _switchSubscribe() {
+    return TextButton(
+      child: Text(_isSubscribe ? '取消订阅' : '订阅'),
+      onPressed: () {
+        setState(() {
+          _isSubscribe = !_isSubscribe;
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -325,8 +338,10 @@ class _MyAppState extends State<MyApp> {
         crossAxisCount: 3,
         children: [
           if (_cameraVideoTrack != null) _localRender,
-          for (final track in _remoteVideoTracks)
-            QNRenderWidget(key: ValueKey(track.value.trackId), track: track),
+          if (_isSubscribe)
+            for (final track in _remoteVideoTracks)
+              QNRenderWidget(key: ValueKey(track.value.trackId), track: track),
+          _switchSubscribe(),
         ],
       ),
     );
