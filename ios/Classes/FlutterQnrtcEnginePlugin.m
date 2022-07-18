@@ -29,6 +29,7 @@
 }
 -(void)removeFromSuperview
 {
+    [super removeFromSuperview];
     NSLog(@"test13:remove from super view");
     [FlutterQnrtcEnginePlugin removeViewForId:[NSNumber numberWithUnsignedLongLong: self.viewId]];
 }
@@ -70,6 +71,7 @@ QNAudioMusicMixerDelegate
 @property (nonatomic, strong) QNCameraVideoTrack *cameraTrack;
 @property (nonatomic, strong) QNMicrophoneAudioTrack *audioTrack;
 @property (nonatomic, strong) QNAudioMusicMixer * audioMixer;
+@property (nonatomic, strong) NSMutableDictionary * viewDictionary;
 @property (nonatomic, strong) NSString * musicPath;
 @property (nonatomic, strong) NSMutableDictionary<NSString *,QNRemoteTrack *> *remoteTracks;
 @property (nonatomic, strong) NSMutableDictionary<NSString *,QNLocalTrack *> *localTracks;
@@ -165,6 +167,8 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     {
         _localTracks = [[NSMutableDictionary alloc] init];
         _remoteTracks = [[NSMutableDictionary alloc] init];
+        
+        _viewDictionary = [[NSMutableDictionary alloc] init];
         
         result(nil);
         return;
@@ -459,18 +463,15 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
         if(track && [track isKindOfClass:[QNRemoteVideoTrack class]])
         {
             
-            NSNumber * viewId = call.arguments[@"viewId"];
+            
             QNRemoteVideoTrack * videoTrack = (QNRemoteVideoTrack * )track;
-            if(viewId != nil)
+            if(call.arguments[@"viewId"] != [NSNull null])
             {
+                NSNumber * viewId = call.arguments[@"viewId"];
                 QnrtcRendererView * view = (QnrtcRendererView *)([FlutterQnrtcEnginePlugin viewForId:viewId]);
-                NSLog(@"test13:bind to view %d",[viewId intValue]);
+                [_viewDictionary setObject:viewId forKey:videoTrack.trackID];
+                NSLog(@"test13:bind to view %d %p",[viewId intValue],view);
                 [videoTrack play:view];
-            }
-            else
-            {
-                NSLog(@"test13:unbind to view");
-                [videoTrack play:nil];
             }
         }
 
@@ -880,6 +881,12 @@ static FlutterQnrtcEnginePlugin * formatTrtcManager = nil;
     NSString *str = [NSString stringWithFormat:@"远端用户: %@ trackID: %@ 视频取消渲染到 renderView 上的回调",  userID, videoTrack.trackID];
     //tobefixed:
 //    [self addLogString:str];
+    
+    NSNumber * viewId = [_viewDictionary objectForKey:videoTrack.trackID];
+    NSLog(@"viewID:%llu ,%@",[viewId longLongValue],str);
+    if(viewId)
+        [[FlutterQnrtcEnginePlugin sharedQnrtcPluginlManager] removeSubView:viewId];
+    [videoTrack play:nil];
 }
 
 
